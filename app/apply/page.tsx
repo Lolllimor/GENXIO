@@ -1,23 +1,9 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-
-const MP_OPERATORS = [
-  "Purifier", "Annihilator", "Death Machine", "Gravity Vortex Gun", "Equalizer",
-  "Ballista EM3", "Ballistic Shield", "Barricade", "Bull Charge", "Claw",
-  "Control Field", "H.I.V.E.", "Havoc", "K9-Unit", "Kinetic Armor",
-  "Misdirection Device", "Munitions Box", "Reactor Core", "Scythe", "Shadow Blade",
-  "Sparrow", "Tac-Deploy", "TAK-5", "Tempest", "Transform Shield", "War Machine", "Other",
-];
-
-const BR_CLASSES = [
-  "Ninja", "Medic", "Scout", "Mechanic", "Defender", "Airborne", "Clown", "Trickster",
-  "Shockwave", "Spotter", "Toxic Overload", "Desperado", "Rewind", "Jet Boost",
-  "Tactical Mirror", "Smoke Bomber", "Trap Master", "Pumped", "Quick Strike", "Other",
-];
-
-const SHEET_ENDPOINT =
-  "https://script.google.com/macros/s/AKfycbwPjKjm_NTaPWF63Y7kPLK3-gPdaVnrmCJNSG0MRAs9zkq77J20T028Upo3WU3V3X-aUw/exec";
+import { createClient } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
+import { MP_OPERATORS, BR_CLASSES } from "@/lib/gameData";
 
 type ToggleValue = "" | "Yes" | "No";
 
@@ -73,29 +59,37 @@ export default function ApplyPage() {
       setMsg({ text: "Please answer Scrim Availability.", ok: false });
       return;
     }
-
-    const entry = {
-      clanTag: `G¹ | ${ign.trim()}`,
-      ign: ign.trim(),
-      status,
-      whatsappName: waName.trim(),
-      whatsappNumber: waNumber.trim(),
-      activity,
-      mode,
-      mpRole: mpRole.trim(),
-      device: device.trim(),
-      compsExperience: comps,
-      scrimAvailability: scrim,
-      weapons: weapons.trim(),
-      mpOperator,
-      brClass,
-      submittedAt: new Date().toISOString(),
-    };
+    if (!supabaseConfigured) {
+      setMsg({ text: "Applications aren't set up yet — check back soon.", ok: false });
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await submitViaHiddenForm(entry);
-      setMsg({ text: `Application submitted — welcome to the roster, ${entry.clanTag}.`, ok: true });
+      const supabase = createClient();
+      const { error } = await supabase.from("applications").insert({
+        clan_tag: "G¹",
+        ign: ign.trim(),
+        status,
+        whatsapp_name: waName.trim() || null,
+        whatsapp_number: waNumber.trim() || null,
+        activity,
+        mode,
+        mp_role: mpRole.trim() || null,
+        device: device.trim() || null,
+        comps_experience: comps === "Yes",
+        scrim_availability: scrim === "Yes",
+        weapons: weapons.trim() || null,
+        mp_operator: mpOperator,
+        br_class: brClass,
+      });
+
+      if (error) throw error;
+
+      setMsg({
+        text: `Application submitted — we'll review it and get back to you, ${`G¹ | ${ign.trim()}`}.`,
+        ok: true,
+      });
       resetForm();
     } catch (err) {
       console.error(err);
@@ -105,53 +99,16 @@ export default function ApplyPage() {
     }
   }
 
-  // Google Apps Script web apps don't send CORS headers, so a normal cross-origin
-  // fetch() can't read the response. A hidden <form> POST to a hidden <iframe>
-  // isn't subject to that restriction (only fetch/XHR response-reading is CORS-gated),
-  // so this reliably delivers the data even though we can't read a confirmation back.
-  function submitViaHiddenForm(entry: Record<string, string>): Promise<void> {
-    return new Promise((resolve) => {
-      const iframeName = "hidden-submit-" + Date.now();
-      const iframe = document.createElement("iframe");
-      iframe.name = iframeName;
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = SHEET_ENDPOINT;
-      form.target = iframeName;
-      form.style.display = "none";
-
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "payload";
-      input.value = JSON.stringify(entry);
-      form.appendChild(input);
-
-      document.body.appendChild(form);
-      form.submit();
-
-      const cleanup = () => {
-        document.body.removeChild(form);
-        document.body.removeChild(iframe);
-        resolve();
-      };
-      // Give the request a moment to actually leave the browser before resolving.
-      setTimeout(cleanup, 1200);
-    });
-  }
-
   return (
     <>
       <div className="mx-auto max-w-2xl px-5 pb-5 pt-14 md:px-8 md:pt-[60px]">
         <div className="eyebrow mb-2.5">Roster Intake — Call of Duty Mobile</div>
-        <h1 className="font-display text-[28px] font-bold uppercase tracking-tight text-white md:text-[38px]">
+        <h1 className="font-display text-[28px] font-bold uppercase tracking-tight text-text md:text-[38px]">
           New Member Sign-Up
         </h1>
         <p className="mt-3 max-w-lg text-[13.5px] text-text-dim">
-          Fill this out to be added to the <b className="text-text">G¹</b> active roster. All
-          fields are required.
+          Fill this out to apply to the <b className="text-text">G¹</b> roster. All fields are
+          required.
         </p>
       </div>
 

@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const LINKS = [
-  { href: "/", label: "Home", disabled: false },
-  { href: "/news", label: "News", disabled: true },
-  { href: "/achievements", label: "Achievements", disabled: true },
+  { href: "/", label: "Home" },
+  { href: "/news", label: "News" },
+  { href: "/achievements", label: "Achievements" },
 ];
 
 export default function Nav() {
@@ -24,7 +24,7 @@ export default function Nav() {
           <Image src="/logo.jpg" alt="GenXio logo" width={38} height={38} className="h-full w-full object-cover [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)]" />
         </span>
         <span className="flex flex-col">
-          <span className="font-display text-base font-bold leading-none tracking-wide text-white">
+          <span className="font-display text-base font-bold leading-none tracking-wide text-text">
             GEN<span className="text-purple">X</span>IO
           </span>
           <span className="live-dot mt-1">Online</span>
@@ -50,23 +50,6 @@ export default function Nav() {
       >
         {LINKS.map((l) => {
           const active = pathname === l.href;
-
-          if (l.disabled) {
-            return (
-              <span
-                key={l.href}
-                aria-disabled="true"
-                title="Coming soon"
-                className="flex items-center gap-2 border-b border-line px-5 py-4 font-display text-xs font-semibold uppercase tracking-[0.12em] text-text-dim/40 md:border-none md:p-0 md:pb-1.5"
-              >
-                {l.label}
-                <span className="rounded-sm border border-line px-1.5 py-[1px] text-[9px] tracking-[0.1em] text-text-dim/60">
-                  Soon
-                </span>
-              </span>
-            );
-          }
-
           return (
             <Link
               key={l.href}

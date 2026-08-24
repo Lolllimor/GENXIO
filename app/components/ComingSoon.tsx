@@ -19,7 +19,7 @@ export default function ComingSoon({
       </div>
 
       <div className="eyebrow mb-2.5 justify-center">{eyebrow}</div>
-      <h1 className="font-display text-[26px] font-bold uppercase tracking-tight text-white md:text-[34px]">
+      <h1 className="font-display text-[26px] font-bold uppercase tracking-tight text-text md:text-[34px]">
         {title}
       </h1>
       <p className="mt-3 max-w-md text-[13.5px] leading-relaxed text-text-dim">{desc}</p>

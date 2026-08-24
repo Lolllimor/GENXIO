@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Nav from "./components/Nav";
-import Footer from "./components/Footer";
+import SiteChrome from "./components/SiteChrome";
 
 export const metadata: Metadata = {
   title: "GenXio Esports — Play. Evolve. Dominate.",
@@ -13,13 +12,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen">
+        <div className="glow-field" />
         <div className="tactical-grid" />
+        <div className="scan-sweep" />
         <div className="scanlines" />
         <div className="vignette" />
+        <div className="grain" />
         <div className="relative z-10">
-          <Nav />
-          {children}
-          <Footer />
+          <SiteChrome>{children}</SiteChrome>
         </div>
       </body>
     </html>

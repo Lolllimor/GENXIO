@@ -1,5 +1,16 @@
 import Link from "next/link";
 
+const EMBERS = [
+  { left: "6%", size: 3, duration: 7.5, delay: 0, driftX: "10px", color: "var(--purple)" },
+  { left: "16%", size: 2, duration: 9.5, delay: 1.8, driftX: "-12px", color: "var(--amber)" },
+  { left: "28%", size: 4, duration: 8, delay: 3.2, driftX: "8px", color: "var(--purple)" },
+  { left: "42%", size: 2, duration: 6.5, delay: 0.6, driftX: "-6px", color: "var(--amber)" },
+  { left: "58%", size: 3, duration: 10, delay: 2.4, driftX: "12px", color: "var(--purple)" },
+  { left: "71%", size: 2, duration: 7, delay: 4.1, driftX: "-10px", color: "var(--amber)" },
+  { left: "83%", size: 3, duration: 8.8, delay: 1.2, driftX: "6px", color: "var(--purple)" },
+  { left: "93%", size: 2, duration: 6, delay: 3.6, driftX: "-8px", color: "var(--amber)" },
+];
+
 const PILLARS = [
   {
     n: "01",
@@ -23,9 +34,26 @@ export default function Home() {
     <>
       <section className="relative overflow-hidden px-5 pb-14 pt-16 md:px-8 md:pb-[70px] md:pt-[90px]">
         <div
-          className="pointer-events-none absolute right-[-160px] top-1/2 h-[380px] w-[380px] -translate-y-1/2 bg-contain bg-center bg-no-repeat opacity-[0.06] grayscale md:right-[-120px] md:h-[640px] md:w-[640px] md:opacity-[0.07]"
-          style={{ backgroundImage: "url(/logo.jpg)" }}
+          className="pointer-events-none absolute right-[-160px] top-1/2 h-[380px] w-[380px] -translate-y-1/2 bg-contain bg-center bg-no-repeat grayscale md:right-[-120px] md:h-[640px] md:w-[640px]"
+          style={{ backgroundImage: "url(/logo.jpg)", opacity: "var(--decoration-opacity)" }}
         />
+        <div className="light-shaft -left-1/4 -top-10" />
+        {EMBERS.map((e, i) => (
+          <span
+            key={i}
+            className="ember"
+            style={{
+              left: e.left,
+              bottom: "-10px",
+              width: e.size,
+              height: e.size,
+              background: e.color,
+              animationDuration: `${e.duration}s`,
+              animationDelay: `${e.delay}s`,
+              ["--drift-x" as string]: e.driftX,
+            }}
+          />
+        ))}
         <svg
           className="reticle pointer-events-none absolute right-[6%] top-[18%] hidden h-[140px] w-[140px] text-purple md:block"
           viewBox="0 0 100 100"
@@ -39,6 +67,13 @@ export default function Home() {
           <line x1="2" y1="50" x2="18" y2="50" strokeWidth="1" />
           <line x1="82" y1="50" x2="98" y2="50" strokeWidth="1" />
         </svg>
+        <div className="chevron-marker absolute bottom-[8%] right-[16%] hidden md:flex">
+          {[0, 1, 2].map((i) => (
+            <svg key={i} width="18" height="10" viewBox="0 0 18 10" fill="none" className="text-purple">
+              <path d="M1 1l8 8 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ))}
+        </div>
         <div className="relative z-10 mx-auto max-w-5xl">
           <div className="mb-3 flex flex-wrap items-center gap-4">
             <div className="eyebrow">GenXio Esports — Call of Duty Mobile</div>
@@ -66,19 +101,19 @@ export default function Home() {
       <div className="hazard-stripe" />
       <div className="flex flex-wrap justify-center gap-4 border-b border-line bg-panel/40 px-5 py-7 md:gap-8 md:px-8">
         <div className="stat-readout min-w-[130px] text-center">
-          <div className="font-display text-2xl font-bold text-white md:text-[28px]">G¹</div>
+          <div className="font-display text-2xl font-bold text-text md:text-[28px]">G¹</div>
           <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
             Flagship squad
           </div>
         </div>
         <div className="stat-readout min-w-[130px] text-center">
-          <div className="font-display text-2xl font-bold text-white md:text-[28px]">MP + BR</div>
+          <div className="font-display text-2xl font-bold text-text md:text-[28px]">MP + BR</div>
           <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
             Full roster coverage
           </div>
         </div>
         <div className="stat-readout min-w-[130px] text-center">
-          <div className="font-display text-2xl font-bold text-white md:text-[28px]">24/7</div>
+          <div className="font-display text-2xl font-bold text-text md:text-[28px]">24/7</div>
           <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
             Active community
           </div>
@@ -89,7 +124,7 @@ export default function Home() {
         <div className="grid gap-10 md:grid-cols-[1.1fr_0.9fr] md:gap-12">
           <div>
             <div className="eyebrow mb-2.5">Who we are</div>
-            <h2 className="font-display mb-4 text-[26px] font-bold text-white">
+            <h2 className="font-display mb-4 text-[26px] font-bold text-text">
               One team. One goal.
             </h2>
             <p className="mb-4 text-sm leading-[1.8] text-text-dim">
@@ -114,7 +149,7 @@ export default function Home() {
                   {p.n}
                 </div>
                 <div>
-                  <div className="font-display text-[13px] font-semibold tracking-wide text-white">
+                  <div className="font-display text-[13px] font-semibold tracking-wide text-text">
                     {p.title}
                   </div>
                   <div className="mt-1 text-xs leading-relaxed text-text-dim">{p.desc}</div>
@@ -136,7 +171,7 @@ export default function Home() {
         />
         <div className="relative z-10">
           <div className="eyebrow mb-3 justify-center">Roster intake open</div>
-          <h2 className="font-display mb-3 text-[28px] font-bold uppercase tracking-tight text-white md:text-[34px]">
+          <h2 className="font-display mb-3 text-[28px] font-bold uppercase tracking-tight text-text md:text-[34px]">
             Think you have what it takes?
           </h2>
           <p className="mb-6 text-[13.5px] text-text-dim">

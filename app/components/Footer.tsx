@@ -10,7 +10,7 @@ export default function Footer() {
             <Image src="/logo.jpg" alt="GenXio logo" width={30} height={30} className="h-full w-full object-cover" />
           </span>
           <div>
-            <div className="font-display text-sm font-bold text-white">
+            <div className="font-display text-sm font-bold text-text">
               GEN<span className="text-purple">X</span>IO
             </div>
             <div className="text-[10px] uppercase tracking-[0.14em] text-text-dim">
