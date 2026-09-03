@@ -28,13 +28,13 @@ export async function getOrgSocialLinks(): Promise<OrgSocialLink[]> {
 
   if (error || !data) return [];
 
-  return (
-    [
-      { label: "WhatsApp", href: data.whatsapp_url },
-      { label: "Discord", href: data.discord_url },
-      { label: "TikTok", href: data.tiktok_url },
-    ] as const
-  ).filter((s): s is OrgSocialLink => Boolean(s.href?.trim()));
+  const links: OrgSocialLink[] = [
+    { label: "WhatsApp", href: data.whatsapp_url ?? "" },
+    { label: "Discord", href: data.discord_url ?? "" },
+    { label: "TikTok", href: data.tiktok_url ?? "" },
+  ];
+
+  return links.filter((s) => Boolean(s.href.trim()));
 }
 
 async function embedFromUrl(watchUrl: string, videoId: string): Promise<OrgTikTokEmbed> {
