@@ -17,7 +17,7 @@ export interface ChartPoint {
 export default function PositionChart({ points: raw }: { points: ChartPoint[] }) {
   if (raw.length === 0) {
     return (
-      <div className="card flex h-[220px] items-center justify-center text-sm text-text-dim">
+      <div className="admin-panel flex h-[220px] items-center justify-center text-sm text-text-dim">
         No results logged yet — log a placement from a scrim to see the trend.
       </div>
     );
@@ -49,7 +49,7 @@ export default function PositionChart({ points: raw }: { points: ChartPoint[] })
   const labelEvery = Math.max(1, Math.ceil(sorted.length / 8));
 
   return (
-    <div className="card overflow-x-auto">
+    <div className="admin-panel overflow-x-auto">
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[560px]" role="img" aria-label="Match placement over time">
         {yTicks.map((pos) => (
           <g key={pos}>

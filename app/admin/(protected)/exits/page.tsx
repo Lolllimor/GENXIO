@@ -235,31 +235,31 @@ export default function ExitsPage() {
       ) : exits.length === 0 ? (
         <p className="text-sm text-text-dim">No departures logged.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
+        <div className="admin-table-wrap">
+          <table className="min-w-[720px]">
             <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
-                <th className="py-2.5 pr-4 font-display">IGN</th>
-                <th className="py-2.5 pr-4 font-display">Role</th>
-                <th className="py-2.5 pr-4 font-display">Joined</th>
-                <th className="py-2.5 pr-4 font-display">Exited</th>
-                <th className="py-2.5 pr-4 font-display">Reason</th>
-                <th className="py-2.5 pr-4 font-display"></th>
+              <tr>
+                <th>IGN</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Exited</th>
+                <th>Reason</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {exits.map((x) => (
-                <tr key={x.id} className="border-b border-line/60">
-                  <td className="py-3 pr-4 font-semibold text-text">{x.ign}</td>
-                  <td className="py-3 pr-4 text-text-dim">{x.role_at_exit ?? "—"}</td>
-                  <td className="py-3 pr-4 text-text-dim">
+                <tr key={x.id}>
+                  <td className="font-semibold text-text">{x.ign}</td>
+                  <td className="text-text-dim">{x.role_at_exit ?? "—"}</td>
+                  <td className="text-text-dim">
                     {x.date_joined ? new Date(x.date_joined + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—"}
                   </td>
-                  <td className="py-3 pr-4 text-text-dim">
+                  <td className="text-text-dim">
                     {new Date(x.date_exited + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                   </td>
-                  <td className="py-3 pr-4 text-text-dim">{x.reason_for_exit ?? "—"}</td>
-                  <td className="py-3 pr-4">
+                  <td className="text-text-dim">{x.reason_for_exit ?? "—"}</td>
+                  <td>
                     <button
                       onClick={() => handleDelete(x.id)}
                       className="text-[11px] font-semibold uppercase tracking-wide text-red hover:brightness-125"

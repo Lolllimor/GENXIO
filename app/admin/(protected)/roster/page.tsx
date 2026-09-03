@@ -517,9 +517,7 @@ export default function RosterPage() {
               <button
                 key={f.id}
                 onClick={() => setTeamFilter(f.id)}
-                className={`border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide [clip-path:polygon(4px_0,100%_0,100%_calc(100%-4px),calc(100%-4px)_100%,0_100%,0_4px)] ${
-                  teamFilter === f.id ? "border-purple bg-purple/10 text-purple" : "border-line text-text-dim"
-                }`}
+                className={`admin-chip ${teamFilter === f.id ? "admin-chip-active" : ""}`}
               >
                 {f.label} ({f.count})
               </button>
@@ -530,26 +528,26 @@ export default function RosterPage() {
             <p className="mb-4 text-sm text-text-dim">No members on this team yet.</p>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
+          <div className="admin-table-wrap">
+            <table className="min-w-[760px]">
               <thead>
-                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
-                  <th className="py-2.5 pr-4 font-display">IGN</th>
-                  <th className="py-2.5 pr-4 font-display">Team</th>
-                  <th className="py-2.5 pr-4 font-display">Status</th>
-                  <th className="py-2.5 pr-4 font-display">Mode</th>
-                  <th className="py-2.5 pr-4 font-display">Role</th>
-                  <th className="py-2.5 pr-4 font-display">WhatsApp</th>
-                  <th className="py-2.5 pr-4 font-display"></th>
+                <tr>
+                  <th>IGN</th>
+                  <th>Team</th>
+                  <th>Status</th>
+                  <th>Mode</th>
+                  <th>Role</th>
+                  <th>WhatsApp</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {visibleMembers.map((m) => (
-                  <tr key={m.id} className="border-b border-line/60">
-                    <td className="py-3 pr-4 font-semibold text-text">
+                  <tr key={m.id}>
+                    <td className="font-semibold text-text">
                       {m.clan_tag} | {m.ign}
                     </td>
-                    <td className="py-3 pr-4">
+                    <td>
                       <select
                         value={m.clan_team ?? ""}
                         disabled={savingTeamId === m.id}
@@ -564,7 +562,7 @@ export default function RosterPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="py-3 pr-4">
+                    <td>
                       <span
                         className={`text-[11px] font-semibold uppercase tracking-wide ${
                           m.status === "ACTIVE" ? "text-green" : "text-text-dim"
@@ -573,10 +571,10 @@ export default function RosterPage() {
                         {m.status}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 text-text-dim">{m.mode ?? "—"}</td>
-                    <td className="py-3 pr-4 text-text-dim">{m.mp_role ?? "—"}</td>
-                    <td className="py-3 pr-4 text-text-dim">{m.whatsapp_number ?? "—"}</td>
-                    <td className="py-3 pr-4">
+                    <td className="text-text-dim">{m.mode ?? "—"}</td>
+                    <td className="text-text-dim">{m.mp_role ?? "—"}</td>
+                    <td className="text-text-dim">{m.whatsapp_number ?? "—"}</td>
+                    <td>
                       <div className="flex gap-3">
                         <button
                           onClick={() => startEdit(m)}

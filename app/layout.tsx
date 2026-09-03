@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteChrome from "./components/SiteChrome";
+import { getOrgSocialLinks } from "@/lib/org-socials";
 
 export const metadata: Metadata = {
   title: "GenXio Esports — Play. Evolve. Dominate.",
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
     "GenXio is a competitive Call of Duty Mobile clan built on discipline, skill, and unity.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const revalidate = 60;
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const socials = await getOrgSocialLinks();
+
   return (
     <html lang="en">
       <body className="min-h-screen">
@@ -19,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="vignette" />
         <div className="grain" />
         <div className="relative z-10">
-          <SiteChrome>{children}</SiteChrome>
+          <SiteChrome socials={socials}>{children}</SiteChrome>
         </div>
       </body>
     </html>

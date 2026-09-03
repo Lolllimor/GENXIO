@@ -93,22 +93,22 @@ export default function MatchResultsPage() {
       {loading ? <p className="text-sm text-text-dim">Loading…</p> : <PositionChart points={chartPoints} />}
 
       {!loading && rows.length > 0 && (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse text-left text-[13px]">
+        <div className="admin-table-wrap mt-6">
+          <table className="min-w-[520px]">
             <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
-                <th className="py-2.5 pr-4 font-display">Date</th>
-                <th className="py-2.5 pr-4 font-display">Opponent</th>
-                <th className="py-2.5 pr-4 font-display">Lobby</th>
-                <th className="py-2.5 pr-4 font-display">Position</th>
-                <th className="py-2.5 pr-4 font-display">Notes</th>
-                <th className="py-2.5 pr-4 font-display"></th>
+              <tr>
+                <th>Date</th>
+                <th>Opponent</th>
+                <th>Lobby</th>
+                <th>Position</th>
+                <th>Notes</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-line/60">
-                  <td className="py-3 pr-4 text-text-dim">
+                <tr key={r.id}>
+                  <td className="text-text-dim">
                     {r.scrim_date
                       ? new Date(r.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
                           year: "numeric",
@@ -117,11 +117,11 @@ export default function MatchResultsPage() {
                         })
                       : "—"}
                   </td>
-                  <td className="py-3 pr-4 text-text-dim">{r.opponent || "Internal scrim"}</td>
-                  <td className="py-3 pr-4 text-text-dim">#{r.lobby_number}</td>
-                  <td className="py-3 pr-4 font-semibold text-text">#{r.position}</td>
-                  <td className="py-3 pr-4 text-text-dim">{r.notes ?? "—"}</td>
-                  <td className="py-3 pr-4">
+                  <td className="text-text-dim">{r.opponent || "Internal scrim"}</td>
+                  <td className="text-text-dim">#{r.lobby_number}</td>
+                  <td className="font-semibold text-text">#{r.position}</td>
+                  <td className="text-text-dim">{r.notes ?? "—"}</td>
+                  <td>
                     <Link
                       href={`/admin/scrims/${r.scrim_id}`}
                       className="text-[11px] font-semibold uppercase tracking-wide text-purple hover:brightness-125"

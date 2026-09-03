@@ -37,7 +37,7 @@ export default function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="card flex max-h-full w-full max-w-lg shrink-0 animate-[modal-in_0.18s_cubic-bezier(0.16,1,0.3,1)] flex-col !p-0">
+      <div className="admin-panel flex max-h-full w-full max-w-lg shrink-0 animate-[modal-in_0.18s_cubic-bezier(0.16,1,0.3,1)] flex-col !p-0">
         <div
           className={`flex shrink-0 items-center justify-between border-b border-line px-5 py-3.5 font-display text-[11px] uppercase tracking-[0.16em] ${
             accent === "amber" ? "text-amber" : "text-purple"

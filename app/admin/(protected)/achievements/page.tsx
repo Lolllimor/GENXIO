@@ -201,7 +201,7 @@ export default function AdminAchievementsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((a) => (
-            <div key={a.id} className="card">
+            <div key={a.id} className="admin-panel">
               <div className="rank-badge mb-2.5">{a.result}</div>
               <h3 className="mb-1.5 text-[15px] font-semibold text-text">{a.title}</h3>
               {a.description && (

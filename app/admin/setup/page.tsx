@@ -18,7 +18,7 @@ export default function AdminSetupPage() {
       </p>
 
       <ol className="mt-6 flex flex-col gap-4">
-        <li className="card">
+        <li className="admin-panel">
           <div className="font-display mb-1.5 text-[13px] font-bold tracking-wide text-purple">01</div>
           <p className="text-[13px] leading-relaxed text-text-dim">
             Create a free project at{" "}
@@ -27,7 +27,7 @@ export default function AdminSetupPage() {
             and the <span className="text-text">anon public</span> key.
           </p>
         </li>
-        <li className="card">
+        <li className="admin-panel">
           <div className="font-display mb-1.5 text-[13px] font-bold tracking-wide text-purple">02</div>
           <p className="text-[13px] leading-relaxed text-text-dim">
             Copy <code className="text-text">.env.local.example</code> to{" "}
@@ -37,14 +37,14 @@ export default function AdminSetupPage() {
             server.
           </p>
         </li>
-        <li className="card">
+        <li className="admin-panel">
           <div className="font-display mb-1.5 text-[13px] font-bold tracking-wide text-purple">03</div>
           <p className="text-[13px] leading-relaxed text-text-dim">
             In the Supabase SQL editor, run <code className="text-text">supabase/schema.sql</code>{" "}
             from this repo to create the tables and access rules.
           </p>
         </li>
-        <li className="card">
+        <li className="admin-panel">
           <div className="font-display mb-1.5 text-[13px] font-bold tracking-wide text-purple">04</div>
           <p className="text-[13px] leading-relaxed text-text-dim">
             In <span className="text-text">Authentication → Users</span>, add yourself with an

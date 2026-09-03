@@ -83,11 +83,17 @@ export interface Exit {
 }
 
 export interface OrgSettings {
-  id: true;
+  id: string;
   organization_name: string | null;
   team_name: string | null;
   team_tag: string | null;
   manager_discord: string | null;
+  whatsapp_url: string | null;
+  discord_url: string | null;
+  tiktok_url: string | null;
+  tiktok_video_url: string | null;
+  tiktok_video_title: string | null;
+  tiktok_video_caption: string | null;
   updated_at: string;
 }
 

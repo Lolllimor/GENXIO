@@ -62,35 +62,36 @@ export default async function AdminDashboard() {
         Dashboard
       </h1>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="stat-readout">
-          <div className="font-display text-2xl font-bold text-amber">{pendingApplications}</div>
-          <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
-            Applications pending review
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="admin-stat">
+          <div className="admin-stat-index">01 — Intake</div>
+          <div className="font-display text-[32px] font-bold leading-none text-amber [text-shadow:0_0_18px_rgba(255,154,31,0.35)]">
+            {pendingApplications}
           </div>
+          <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Applications pending</div>
         </div>
-        <div className="stat-readout">
-          <div className="font-display text-2xl font-bold text-text">{activeMembers}</div>
-          <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
-            Active / {totalMembers} total members
+        <div className="admin-stat">
+          <div className="admin-stat-index">02 — Roster</div>
+          <div className="font-display text-[32px] font-bold leading-none text-text">
+            {activeMembers}
+            <span className="ml-1.5 text-lg text-text-dim">/{totalMembers}</span>
           </div>
+          <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Active members</div>
         </div>
-        <div className="stat-readout">
-          <div className="font-display text-2xl font-bold text-text">{scrimCount}</div>
-          <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
-            Scrims logged
-          </div>
+        <div className="admin-stat">
+          <div className="admin-stat-index">03 — Comp</div>
+          <div className="font-display text-[32px] font-bold leading-none text-text">{scrimCount}</div>
+          <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Scrims logged</div>
         </div>
-        <div className="stat-readout">
-          <div className="font-display text-2xl font-bold text-text">{draftNews + draftAchievements}</div>
-          <div className="mt-1 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">
-            Drafts unpublished (news + achievements)
-          </div>
+        <div className="admin-stat">
+          <div className="admin-stat-index">04 — Publish</div>
+          <div className="font-display text-[32px] font-bold leading-none text-text">{draftNews + draftAchievements}</div>
+          <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Unpublished drafts</div>
         </div>
       </div>
 
       <div className="mt-8">
-        <div className="mb-2.5 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div className="eyebrow">Performance trend</div>
           <Link href="/admin/results" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
             View all →
@@ -100,19 +101,24 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">
-        <div className="px-4">
-          <div className="mb-2.5 flex items-center justify-between">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
             <div className="eyebrow">Recent applications</div>
             <Link href="/admin/applications" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
               View all →
             </Link>
           </div>
           {recentApplications.length === 0 ? (
-            <div className="card text-sm text-text-dim">No applications yet.</div>
+            <div className="admin-panel text-sm text-text-dim">No applications yet.</div>
           ) : (
-            <div className="flex flex-col gap-3 ">
-              {recentApplications.map((a) => (
-                <div key={a.id} className="card flex items-center justify-between gap-4 !p-5">
+            <div className="admin-panel !p-0">
+              {recentApplications.map((a, i) => (
+                <div
+                  key={a.id}
+                  className={`flex items-center justify-between gap-4 px-5 py-3.5 ${
+                    i < recentApplications.length - 1 ? "border-b border-line" : ""
+                  }`}
+                >
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold text-text">
                       {a.clan_tag} | {a.ign}
@@ -134,19 +140,25 @@ export default async function AdminDashboard() {
           )}
         </div>
 
-        <div className="px-4">
-          <div className="mb-2.5 flex items-center justify-between ">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
             <div className="eyebrow">Recent scrims</div>
             <Link href="/admin/scrims" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
               View all →
             </Link>
           </div>
           {recentScrims.length === 0 ? (
-            <div className="card text-sm text-text-dim">No scrims logged yet.</div>
+            <div className="admin-panel text-sm text-text-dim">No scrims logged yet.</div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {recentScrims.map((s) => (
-                <Link key={s.id} href={`/admin/scrims/${s.id}`} className="card flex items-center justify-between gap-4 !p-5">
+            <div className="admin-panel !p-0">
+              {recentScrims.map((s, i) => (
+                <Link
+                  key={s.id}
+                  href={`/admin/scrims/${s.id}`}
+                  className={`flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-white/[0.02] ${
+                    i < recentScrims.length - 1 ? "border-b border-line" : ""
+                  }`}
+                >
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold text-text">
                       {s.opponent || "Internal scrim"}

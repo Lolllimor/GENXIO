@@ -7,8 +7,8 @@ import { useState } from "react";
 
 const LINKS = [
   { href: "/", label: "Home" },
-  { href: "/news", label: "News" },
-  { href: "/achievements", label: "Achievements" },
+  { href: "/news", label: "News", disabled: true },
+  { href: "/achievements", label: "Achievements", disabled: true },
 ];
 
 export default function Nav() {
@@ -50,17 +50,24 @@ export default function Nav() {
       >
         {LINKS.map((l) => {
           const active = pathname === l.href;
+          const className = `border-b border-line px-5 py-4 font-display text-xs font-semibold uppercase tracking-[0.12em] md:border-none md:border-l-0 md:p-0 md:pb-1.5 ${
+            l.disabled
+              ? "pointer-events-none cursor-not-allowed border-l-2 border-l-transparent text-text-dim/45"
+              : active
+                ? "border-l-2 border-l-purple text-purple md:border-b-2 md:border-b-purple md:[text-shadow:0_0_10px_rgba(139,92,246,0.5)]"
+                : "border-l-2 border-l-transparent text-text-dim transition-colors hover:text-text"
+          }`;
+
+          if (l.disabled) {
+            return (
+              <span key={l.href} className={className} aria-disabled="true" title="Coming soon">
+                {l.label}
+              </span>
+            );
+          }
+
           return (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className={`border-b border-line px-5 py-4 font-display text-xs font-semibold uppercase tracking-[0.12em] transition-colors md:border-none md:border-l-0 md:p-0 md:pb-1.5 ${
-                active
-                  ? "border-l-2 border-l-purple text-purple md:border-b-2 md:border-b-purple md:[text-shadow:0_0_10px_rgba(139,92,246,0.5)]"
-                  : "border-l-2 border-l-transparent text-text-dim hover:text-text"
-              }`}
-            >
+            <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className={className}>
               {active ? "// " : ""}
               {l.label}
             </Link>

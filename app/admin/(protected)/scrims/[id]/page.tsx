@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CLAN_TEAM_STYLE, clanTeamMeta } from "@/lib/gameData";
+import { CLAN_TEAMS, CLAN_TEAM_STYLE, clanTeamMeta } from "@/lib/gameData";
 import type { AttendanceStatus, ClanTeam, Member, MatchResult, MatchResultKill, Scrim, ScrimTeam, TeamSlot } from "@/lib/supabase/types";
 import { toastSuccess, toastError } from "../../toast";
 
@@ -51,6 +51,7 @@ export default function ScrimAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addingTeam, setAddingTeam] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const [lobbies, setLobbies] = useState<LobbyState[]>([emptyLobby()]);
   const [removedResultIds, setRemovedResultIds] = useState<string[]>([]);
@@ -186,12 +187,9 @@ export default function ScrimAttendancePage() {
     setSaved(false);
   }
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-
-    const rows = members.map((m) => {
-      const a = assignments[m.id];
+  async function persistAttendance(nextAssignments: Record<string, Assignment>, roster: Member[]) {
+    const rows = roster.map((m) => {
+      const a = nextAssignments[m.id];
       return {
         scrim_id: scrimId,
         member_id: m.id,
@@ -200,10 +198,164 @@ export default function ScrimAttendancePage() {
         slot: a ? a.slot : null,
       };
     });
+    return supabase.from("scrim_attendance").upsert(rows, { onConflict: "scrim_id,member_id" });
+  }
 
-    const { error } = await supabase
-      .from("scrim_attendance")
-      .upsert(rows, { onConflict: "scrim_id,member_id" });
+  async function fillFromClanTeams() {
+    setSeeding(true);
+    setError(null);
+
+    const byName = new Map(teams.map((t) => [t.name.toLowerCase(), t]));
+    const teamForClan: Record<string, ScrimTeam> = {};
+    const created: ScrimTeam[] = [];
+
+    for (const clan of CLAN_TEAMS) {
+      const existing = byName.get(clan.label.toLowerCase());
+      if (existing) {
+        teamForClan[clan.id] = existing;
+        continue;
+      }
+      const { data, error } = await supabase
+        .from("scrim_teams")
+        .insert({ scrim_id: scrimId, name: clan.label, sort_order: clan.rank - 1 })
+        .select("*")
+        .single();
+      if (error || !data) {
+        setSeeding(false);
+        const message = error?.message ?? "Could not create clan teams.";
+        setError(message);
+        toastError(message);
+        return;
+      }
+      teamForClan[clan.id] = data;
+      created.push(data);
+    }
+
+    const nextTeams = [...teams, ...created].sort((a, b) => a.sort_order - b.sort_order);
+    const nextAssignments: Record<string, Assignment> = { ...assignments };
+
+    for (const clan of CLAN_TEAMS) {
+      const team = teamForClan[clan.id];
+      let mains = Object.values(nextAssignments).filter((a) => a.teamId === team.id && a.slot === "main").length;
+      let subs = Object.values(nextAssignments).filter((a) => a.teamId === team.id && a.slot === "sub").length;
+      const pool = members.filter((m) => m.clan_team === clan.id && !nextAssignments[m.id]);
+      for (const m of pool) {
+        if (mains < SLOT_CAP.main) {
+          nextAssignments[m.id] = { teamId: team.id, slot: "main", status: "present" };
+          mains += 1;
+        } else if (subs < SLOT_CAP.sub) {
+          nextAssignments[m.id] = { teamId: team.id, slot: "sub", status: "present" };
+          subs += 1;
+        }
+      }
+    }
+
+    const { error } = await persistAttendance(nextAssignments, members);
+    setSeeding(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    setTeams(nextTeams);
+    setAssignments(nextAssignments);
+    setSaved(true);
+    toastSuccess("Lineup filled from clan teams.");
+  }
+
+  async function copyLastLineup() {
+    if (teams.length > 0) {
+      toastError("This scrim already has teams. Delete them first if you want to copy the last lineup.");
+      return;
+    }
+    setSeeding(true);
+    setError(null);
+
+    const { data: previous, error: prevError } = await supabase
+      .from("scrims")
+      .select("id")
+      .neq("id", scrimId)
+      .order("scrim_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (prevError || !previous) {
+      setSeeding(false);
+      const message = prevError?.message ?? "No previous scrim to copy.";
+      toastError(message);
+      return;
+    }
+
+    const [teamsRes, attRes] = await Promise.all([
+      supabase.from("scrim_teams").select("*").eq("scrim_id", previous.id).order("sort_order"),
+      supabase.from("scrim_attendance").select("member_id, status, team_id, slot").eq("scrim_id", previous.id),
+    ]);
+
+    if (teamsRes.error) {
+      setSeeding(false);
+      setError(teamsRes.error.message);
+      toastError(teamsRes.error.message);
+      return;
+    }
+
+    const sourceTeams = teamsRes.data ?? [];
+    if (sourceTeams.length === 0) {
+      setSeeding(false);
+      toastError("The last scrim has no teams to copy.");
+      return;
+    }
+
+    const activeIds = new Set(members.map((m) => m.id));
+    const idMap: Record<string, string> = {};
+    const created: ScrimTeam[] = [];
+
+    for (const source of sourceTeams) {
+      const { data, error } = await supabase
+        .from("scrim_teams")
+        .insert({ scrim_id: scrimId, name: source.name, sort_order: source.sort_order })
+        .select("*")
+        .single();
+      if (error || !data) {
+        setSeeding(false);
+        const message = error?.message ?? "Could not copy teams.";
+        setError(message);
+        toastError(message);
+        return;
+      }
+      idMap[source.id] = data.id;
+      created.push(data);
+    }
+
+    const nextAssignments: Record<string, Assignment> = { ...assignments };
+    for (const row of attRes.data ?? []) {
+      if (row.status === "absent" || !row.team_id || !row.slot || !activeIds.has(row.member_id)) continue;
+      const teamId = idMap[row.team_id];
+      if (!teamId) continue;
+      nextAssignments[row.member_id] = {
+        teamId,
+        slot: row.slot as TeamSlot,
+        status: row.status as SelectableStatus,
+      };
+    }
+
+    const { error } = await persistAttendance(nextAssignments, members);
+    setSeeding(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    setTeams((prev) => [...prev, ...created].sort((a, b) => a.sort_order - b.sort_order));
+    setAssignments(nextAssignments);
+    setSaved(true);
+    toastSuccess("Copied the last scrim lineup.");
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+
+    const { error } = await persistAttendance(assignments, members);
 
     setSaving(false);
     if (error) {
@@ -365,6 +517,18 @@ export default function ScrimAttendancePage() {
         <p className="mt-6 text-sm text-text-dim">No active members on the roster yet.</p>
       ) : (
         <>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button onClick={fillFromClanTeams} disabled={seeding} className="btn btn-primary !py-2.5 !text-[11px]">
+              {seeding ? "Seating…" : "Fill from clan teams"}
+            </button>
+            <button onClick={copyLastLineup} disabled={seeding || teams.length > 0} className="btn btn-outline !py-2.5 !text-[11px]">
+              Copy last lineup
+            </button>
+            <button onClick={handleAddTeam} disabled={addingTeam || seeding} className="btn btn-outline !py-2.5 !text-[11px]">
+              {addingTeam ? "Adding…" : "+ Add team"}
+            </button>
+          </div>
+
           <div className="mt-5 flex flex-col gap-5">
             {teams.map((team) => (
               <TeamCard
@@ -380,10 +544,6 @@ export default function ScrimAttendancePage() {
               />
             ))}
           </div>
-
-          <button onClick={handleAddTeam} disabled={addingTeam} className="btn btn-outline mt-5 !py-2.5 !text-[11px]">
-            {addingTeam ? "Adding…" : "+ Add team"}
-          </button>
 
           <div className="mt-6 flex items-center gap-3">
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">
@@ -434,7 +594,7 @@ export default function ScrimAttendancePage() {
                     0
                   );
                   return (
-                    <div key={i} className="card">
+                    <div key={i} className="admin-panel">
                       <div className="mb-3.5 flex items-center justify-between border-b border-line pb-3">
                         <div className="font-display text-[13px] font-bold uppercase tracking-wide text-purple">
                           Lobby {i + 1}
@@ -519,7 +679,7 @@ function TeamCard({
   const assignedIds = new Set(Object.keys(assignments));
 
   return (
-    <div className="card">
+    <div className="admin-panel">
       <div className="mb-4 flex items-center justify-between gap-3 border-b border-line pb-3">
         <input
           value={name}

@@ -141,9 +141,7 @@ export default function ApplicationsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide [clip-path:polygon(4px_0,100%_0,100%_calc(100%-4px),calc(100%-4px)_100%,0_100%,0_4px)] ${
-                filter === f ? "border-purple bg-purple/10 text-purple" : "border-line text-text-dim"
-              }`}
+              className={`admin-chip ${filter === f ? "admin-chip-active" : ""}`}
             >
               {f}
               {f === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -165,7 +163,7 @@ export default function ApplicationsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {visible.map((app) => (
-            <div key={app.id} className="card">
+            <div key={app.id} className="admin-panel">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2.5">

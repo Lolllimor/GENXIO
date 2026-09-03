@@ -16,9 +16,6 @@ const mantineTheme = createTheme({
   defaultRadius: 0,
 });
 
-// Mantine's own stylesheet sets a background/text color on <body> via
-// these variables — point them at our tokens instead of its defaults,
-// otherwise Mantine's dark theme quietly overrides the site's own bg.
 const cssVariablesResolver: CSSVariablesResolver = () => ({
   variables: {},
   light: {},
@@ -49,18 +46,38 @@ const ICONS = {
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3a7.97 7.97 0 0 0-.3-2.2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.9-1.1L15 2h-6l-.4 2.7a8 8 0 0 0-1.9 1.1l-2.5-1-2 3.4 2.1 1.6A8 8 0 0 0 4 12c0 .75.1 1.48.3 2.2l-2.1 1.6 2 3.4 2.5-1c.57.46 1.2.83 1.9 1.1L9 22h6l.4-2.7c.7-.27 1.33-.64 1.9-1.1l2.5 1 2-3.4-2.1-1.6c.2-.72.3-1.45.3-2.2Z",
 };
 
-const LINKS = [
-  { href: "/admin", label: "Dashboard", exact: true, icon: ICONS.dashboard },
-  { href: "/admin/applications", label: "Applications", icon: ICONS.applications },
-  { href: "/admin/roster", label: "Roster", icon: ICONS.roster },
-  { href: "/admin/history", label: "Timeline", icon: ICONS.history },
-  { href: "/admin/scrims", label: "Scrims", icon: ICONS.scrims },
-  { href: "/admin/results", label: "Match Results", icon: ICONS.results },
-  { href: "/admin/exits", label: "Exits", icon: ICONS.exits },
-  { href: "/admin/news", label: "News", icon: ICONS.news },
-  { href: "/admin/achievements", label: "Achievements", icon: ICONS.achievements },
-  { href: "/admin/settings", label: "Settings", icon: ICONS.settings },
+const NAV_GROUPS = [
+  {
+    label: "Ops",
+    links: [
+      { href: "/admin", label: "Dashboard", exact: true, icon: ICONS.dashboard },
+      { href: "/admin/applications", label: "Applications", icon: ICONS.applications },
+      { href: "/admin/roster", label: "Roster", icon: ICONS.roster },
+      { href: "/admin/history", label: "Timeline", icon: ICONS.history },
+    ],
+  },
+  // {
+  //   label: "Comp",
+  //   links: [
+  //     { href: "/admin/scrims", label: "Scrims", icon: ICONS.scrims },
+  //     { href: "/admin/results", label: "Match Results", icon: ICONS.results },
+  //   ],
+  // },
+  {
+    label: "Clan",
+    links: [
+      { href: "/admin/exits", label: "Exits", icon: ICONS.exits },
+      { href: "/admin/news", label: "News", icon: ICONS.news },
+      { href: "/admin/achievements", label: "Achievements", icon: ICONS.achievements },
+    ],
+  },
+  {
+    label: "System",
+    links: [{ href: "/admin/settings", label: "Settings", icon: ICONS.settings }],
+  },
 ];
+
+const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 
 export default function AdminShell({
   email,
@@ -83,72 +100,79 @@ export default function AdminShell({
 
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme="dark" cssVariablesResolver={cssVariablesResolver}>
-    <Notifications position="top-right" limit={4} />
-    <div className="flex min-h-screen w-full flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-col border-b border-line bg-panel/40 px-5 py-5 md:sticky md:top-0 md:h-screen md:w-64 md:border-b-0 md:border-r md:px-5 md:py-7">
-        <div className="mb-8">
-          <Link href="/admin" className="flex items-center gap-2.5">
-            <span className="hud-frame h-9 w-9 shrink-0 overflow-hidden bg-black p-[2px] [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)]">
+      <Notifications position="top-right" limit={4} />
+      <div className="admin-shell flex min-h-screen w-full flex-col md:flex-row">
+        <aside className="relative flex shrink-0 flex-col border-b border-line bg-[#0c0c12]/88 px-4 py-5 backdrop-blur-md md:sticky md:top-0 md:h-screen md:w-[248px] md:border-b-0 md:border-r md:px-4 md:py-6">
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-px bg-gradient-to-b from-purple/50 via-line to-transparent md:block" />
+          <Link href="/admin" className="mb-7 flex items-center gap-3 px-1">
+            <span className="hud-frame h-10 w-10 shrink-0 overflow-hidden bg-black p-[2px] [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)]">
               <Image
                 src="/logo.jpg"
                 alt="GenXio logo"
-                width={36}
-                height={36}
+                width={40}
+                height={40}
                 className="h-full w-full object-cover [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)]"
               />
             </span>
             <span>
-              <div className="font-display text-sm font-bold tracking-wide text-text">
+              <div className="font-display text-[15px] font-bold tracking-wide text-text">
                 GEN<span className="text-purple">X</span>IO
               </div>
-              <div className="live-dot mt-1">Command console</div>
+              <div className="live-dot mt-1">Command</div>
             </span>
           </Link>
-        </div>
 
-        <nav className="flex gap-1.5 overflow-x-auto md:flex-col md:gap-1 md:overflow-visible">
-          {LINKS.map((l) => {
-            const active = l.exact ? pathname === l.href : pathname?.startsWith(l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap px-3.5 py-2.5 font-display text-xs font-semibold uppercase tracking-[0.1em] transition-colors [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)] ${
-                  active
-                    ? "bg-purple/10 text-purple shadow-[inset_2px_0_0_var(--purple)]"
-                    : "text-text-dim hover:bg-panel-2 hover:text-text"
-                }`}
-              >
-                <Icon d={l.icon} />
-                {l.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex gap-1.5 overflow-x-auto md:flex-1 md:flex-col md:gap-0 md:overflow-y-auto">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="flex gap-1 md:mb-3 md:flex-col md:gap-0.5">
+                <div className="admin-nav-label">// {group.label}</div>
+                {group.links.map((l) => {
+                  const active = l.exact ? pathname === l.href : pathname?.startsWith(l.href);
+                  return (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      className={`admin-nav-link ${active ? "admin-nav-link-active" : ""}`}
+                    >
+                      <Icon d={l.icon} />
+                      {active ? "// " : ""}
+                      {l.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
 
-        <div className="mt-auto pt-8">
-          <div className="mb-2 truncate text-[11px] text-text-dim">{email}</div>
-          <button onClick={handleSignOut} className="btn btn-outline w-full !py-2 !text-[10.5px]">
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="hidden items-center justify-between border-b border-line bg-panel/30 px-8 py-4 md:flex">
-          <div className="font-display text-[11px] uppercase tracking-[0.16em] text-text-dim">
-            Admin <span className="text-purple">/</span> {activeLink?.label ?? ""}
+          <div className="mt-auto hidden border-t border-line pt-4 md:block">
+            <div className="mb-2 truncate px-1 text-[11px] text-text-dim">{email}</div>
+            <button onClick={handleSignOut} className="btn btn-outline w-full !py-2 !text-[10.5px]">
+              Sign out
+            </button>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="live-dot">Live</span>
-            <span className="text-[11px] text-text-dim">{email}</span>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="admin-topbar">
+            <div className="hazard-stripe opacity-70" />
+            <div className="flex items-center justify-between px-5 py-3.5 md:px-8">
+              <div className="font-display text-[11px] uppercase tracking-[0.18em] text-text-dim">
+                <span className="text-purple">//</span> Admin <span className="text-purple">/</span> {activeLink?.label ?? ""}
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="live-dot hidden md:inline-flex">Live</span>
+                <span className="hidden text-[11px] text-text-dim md:inline">{email}</span>
+                <button onClick={handleSignOut} className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-text md:hidden">
+                  Sign out
+                </button>
+              </div>
+            </div>
           </div>
+          <main className="flex-1 px-5 py-6 md:px-8 md:py-8">
+            <div className="mx-auto w-full max-w-[1320px]">{children}</div>
+          </main>
         </div>
-        <main className="flex-1 px-5 py-6 md:px-8 md:py-8">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
-        </main>
       </div>
-    </div>
     </MantineProvider>
   );
 }

@@ -192,7 +192,7 @@ export default function AdminNewsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {posts.map((p) => (
-            <div key={p.id} className="card">
+            <div key={p.id} className="admin-panel">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <span className="tag-chip mb-2">{p.tag}</span>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import TikTokEmbed from "./components/TikTokEmbed";
+import { getOrgTikTokEmbed } from "@/lib/org-socials";
 
 const EMBERS = [
   { left: "6%", size: 3, duration: 7.5, delay: 0, driftX: "10px", color: "var(--purple)" },
@@ -29,7 +31,9 @@ const PILLARS = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const tiktok = await getOrgTikTokEmbed();
+
   return (
     <>
       <section className="relative overflow-hidden px-5 pb-14 pt-16 md:px-8 md:pb-[70px] md:pt-[90px]">
@@ -91,9 +95,9 @@ export default function Home() {
             <Link href="/apply" className="btn btn-primary">
               Join GenXio
             </Link>
-            <Link href="/achievements" className="btn btn-outline">
+            <span className="btn btn-outline pointer-events-none cursor-not-allowed opacity-45">
               See our results
-            </Link>
+            </span>
           </div>
         </div>
       </section>
@@ -159,6 +163,29 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {tiktok && (
+        <section className="mx-auto max-w-5xl px-5 py-14 md:px-8 md:py-[70px]">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl">
+              <div className="eyebrow mb-2.5">From TikTok</div>
+              <h2 className="font-display mb-3 text-[26px] font-bold text-text">{tiktok.title}</h2>
+              {tiktok.caption ? (
+                <p className="text-sm leading-[1.8] text-text-dim">{tiktok.caption}</p>
+              ) : null}
+            </div>
+            <a
+              href={tiktok.watchUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-outline shrink-0"
+            >
+              Open on TikTok
+            </a>
+          </div>
+          <TikTokEmbed videoId={tiktok.videoId} title={tiktok.title} />
+        </section>
+      )}
 
       <div className="relative overflow-hidden border-y border-line bg-panel px-5 py-14 text-center md:px-8">
         <div

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Scrim } from "@/lib/supabase/types";
 import Modal from "../Modal";
@@ -9,6 +10,7 @@ import RowMenu from "../RowMenu";
 import { toastSuccess, toastError } from "../toast";
 
 export default function ScrimsPage() {
+  const router = useRouter();
   const [scrims, setScrims] = useState<Scrim[]>([]);
   const [attendeeCounts, setAttendeeCounts] = useState<Record<string, number>>({});
   const [teamCounts, setTeamCounts] = useState<Record<string, number>>({});
@@ -88,12 +90,16 @@ export default function ScrimsPage() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("scrims").insert({
-      scrim_date: date,
-      opponent: opponent.trim() || null,
-      notes: notes.trim() || null,
-      created_by: user?.id ?? null,
-    });
+    const { data, error } = await supabase
+      .from("scrims")
+      .insert({
+        scrim_date: date,
+        opponent: opponent.trim() || null,
+        notes: notes.trim() || null,
+        created_by: user?.id ?? null,
+      })
+      .select("id")
+      .single();
 
     setSaving(false);
     if (error) {
@@ -102,10 +108,7 @@ export default function ScrimsPage() {
       return;
     }
     toastSuccess("Scrim created.");
-    setOpponent("");
-    setNotes("");
-    setShowForm(false);
-    load();
+    router.push(`/admin/scrims/${data.id}`);
   }
 
   function openDetail(s: Scrim) {
@@ -335,42 +338,46 @@ export default function ScrimsPage() {
       ) : scrims.length === 0 ? (
         <p className="text-sm text-text-dim">No scrims logged yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
+        <div className="admin-table-wrap">
+          <table className="min-w-[640px]">
             <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
-                <th className="py-2.5 pr-4 font-display">Date</th>
-                <th className="py-2.5 pr-4 font-display">Opponent</th>
-                <th className="py-2.5 pr-4 font-display">Attended</th>
-                <th className="py-2.5 pr-4 font-display">Teams</th>
-                <th className="py-2.5 pr-4 font-display">Results</th>
-                <th className="py-2.5 pr-4 font-display"></th>
+              <tr>
+                <th>Date</th>
+                <th>Opponent</th>
+                <th>Attended</th>
+                <th>Teams</th>
+                <th>Results</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {scrims.map((s) => (
-                <tr key={s.id} className="border-b border-line/60 hover:bg-panel-2">
-                  <td className="py-3 pr-4 font-display font-bold tracking-wide text-purple">
+                <tr
+                  key={s.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/admin/scrims/${s.id}`)}
+                >
+                  <td className="font-display font-bold tracking-wide text-purple">
                     {new Date(s.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
                     })}
                   </td>
-                  <td className="py-3 pr-4 font-semibold text-text">
+                  <td className="font-semibold text-text">
                     {s.opponent || "Internal scrim"}
                     {s.notes && <div className="mt-0.5 text-[11px] font-normal text-text-dim">{s.notes}</div>}
                   </td>
-                  <td className="py-3 pr-4 text-text-dim">{attendeeCounts[s.id] ?? 0}</td>
-                  <td className="py-3 pr-4 text-text-dim">{teamCounts[s.id] ?? 0}</td>
-                  <td className="py-3 pr-4 text-text-dim">
+                  <td className="text-text-dim">{attendeeCounts[s.id] ?? 0}</td>
+                  <td className="text-text-dim">{teamCounts[s.id] ?? 0}</td>
+                  <td className="text-text-dim">
                     {resultCounts[s.id] > 0 ? (
                       <span className="text-purple">{resultCounts[s.id]} lobby result(s)</span>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td className="py-3 pr-4 text-right">
+                  <td className="text-right" onClick={(e) => e.stopPropagation()}>
                     <RowMenu
                       onView={() => openDetail(s)}
                       onEdit={() => {

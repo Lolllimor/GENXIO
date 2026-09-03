@@ -243,8 +243,21 @@ create table if not exists public.org_settings (
   team_name text,
   team_tag text,
   manager_discord text,
+  whatsapp_url text,
+  discord_url text,
+  tiktok_url text,
+  tiktok_video_url text,
+  tiktok_video_title text,
+  tiktok_video_caption text,
   updated_at timestamptz not null default now()
 );
+
+alter table public.org_settings add column if not exists whatsapp_url text;
+alter table public.org_settings add column if not exists discord_url text;
+alter table public.org_settings add column if not exists tiktok_url text;
+alter table public.org_settings add column if not exists tiktok_video_url text;
+alter table public.org_settings add column if not exists tiktok_video_title text;
+alter table public.org_settings add column if not exists tiktok_video_caption text;
 
 insert into public.org_settings (id, organization_name, team_name, team_tag)
 values (true, 'GENXIO E-Sports', 'Genxio E-Sports', 'G¹')
@@ -257,6 +270,11 @@ create policy "admins manage org settings"
   on public.org_settings for all
   using (public.is_admin())
   with check (public.is_admin());
+
+drop policy if exists "anyone can read org settings" on public.org_settings;
+create policy "anyone can read org settings"
+  on public.org_settings for select
+  using (true);
 
 -- ---------- scrims + attendance ----------
 create table if not exists public.scrims (
