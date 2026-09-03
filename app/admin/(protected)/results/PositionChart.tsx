@@ -1,7 +1,5 @@
 "use client";
 
-import type { MatchResult } from "@/lib/supabase/types";
-
 const WIDTH = 900;
 const HEIGHT = 320;
 const PAD_LEFT = 40;
@@ -9,16 +7,23 @@ const PAD_RIGHT = 20;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 36;
 
-export default function PositionChart({ results }: { results: MatchResult[] }) {
-  if (results.length === 0) {
+export interface ChartPoint {
+  id: string;
+  date: string;
+  position: number;
+  label?: string;
+}
+
+export default function PositionChart({ points: raw }: { points: ChartPoint[] }) {
+  if (raw.length === 0) {
     return (
       <div className="card flex h-[220px] items-center justify-center text-sm text-text-dim">
-        No matches logged yet — add one to see the trend.
+        No results logged yet — log a placement from a scrim to see the trend.
       </div>
     );
   }
 
-  const sorted = [...results].sort((a, b) => a.match_date.localeCompare(b.match_date));
+  const sorted = [...raw].sort((a, b) => a.date.localeCompare(b.date));
   const positions = sorted.map((r) => r.position);
   const minPos = 1;
   const maxPos = Math.max(...positions, 4);
@@ -72,7 +77,7 @@ export default function PositionChart({ results }: { results: MatchResult[] }) {
               fontSize="9.5"
               style={{ fill: "var(--text-dim)" }}
             >
-              {new Date(r.match_date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              {new Date(r.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </text>
           ) : null
         )}
@@ -91,14 +96,14 @@ export default function PositionChart({ results }: { results: MatchResult[] }) {
               }}
             />
             <title>
-              {new Date(p.r.match_date + "T00:00:00").toLocaleDateString(undefined, {
+              {new Date(p.r.date + "T00:00:00").toLocaleDateString(undefined, {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
               })}
               {" — #"}
               {p.r.position}
-              {p.r.mode ? ` (${p.r.mode})` : ""}
+              {p.r.label ? ` vs ${p.r.label}` : ""}
             </title>
           </g>
         ))}

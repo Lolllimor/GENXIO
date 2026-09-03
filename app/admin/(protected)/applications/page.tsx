@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Application, RosterStatus } from "@/lib/supabase/types";
+import { CLAN_TEAMS } from "@/lib/gameData";
+import type { Application, ClanTeam, RosterStatus } from "@/lib/supabase/types";
+import { toastSuccess, toastError } from "../toast";
 
 const STATUS_STYLE: Record<RosterStatus, string> = {
   pending: "border-amber bg-amber/10 text-amber",
@@ -16,6 +18,7 @@ export default function ApplicationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<RosterStatus | "all">("pending");
+  const [placeOn, setPlaceOn] = useState<Record<string, ClanTeam | "">>({});
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -52,6 +55,7 @@ export default function ApplicationsPage() {
         whatsapp_number: app.whatsapp_number,
         mode: app.mode,
         mp_role: app.mp_role,
+        clan_team: placeOn[app.id] || null,
         device: app.device,
         activity: app.activity,
         comps_experience: app.comps_experience,
@@ -64,7 +68,11 @@ export default function ApplicationsPage() {
       .single();
 
     if (memberError) {
-      setError(memberError.message);
+      const message = /clan_team/i.test(memberError.message)
+        ? "Run supabase/add_clan_teams.sql in the Supabase SQL editor, then try again."
+        : memberError.message;
+      setError(message);
+      toastError(message);
       setBusyId(null);
       return;
     }
@@ -80,8 +88,13 @@ export default function ApplicationsPage() {
       .eq("id", app.id);
 
     setBusyId(null);
-    if (appError) setError(appError.message);
-    else load();
+    if (appError) {
+      setError(appError.message);
+      toastError(appError.message);
+    } else {
+      toastSuccess("Application accepted.");
+      load();
+    }
   }
 
   async function handleReject(app: Application) {
@@ -102,8 +115,13 @@ export default function ApplicationsPage() {
       .eq("id", app.id);
 
     setBusyId(null);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Application rejected.");
+      load();
+    }
   }
 
   const visible = filter === "all" ? apps : apps.filter((a) => a.roster_status === filter);
@@ -168,7 +186,19 @@ export default function ApplicationsPage() {
                   </div>
                 </div>
                 {app.roster_status === "pending" && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={placeOn[app.id] ?? ""}
+                      onChange={(e) => setPlaceOn((p) => ({ ...p, [app.id]: e.target.value as ClanTeam | "" }))}
+                      className="!min-h-0 !w-[148px] !py-1.5 !pr-7 !text-[11px]"
+                    >
+                      <option value="">Unassigned</option>
+                      {CLAN_TEAMS.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       onClick={() => handleAccept(app)}
                       disabled={busyId === app.id}

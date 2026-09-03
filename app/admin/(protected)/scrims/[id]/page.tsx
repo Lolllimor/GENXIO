@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { AttendanceStatus, Member, Scrim, ScrimTeam, TeamSlot } from "@/lib/supabase/types";
+import { CLAN_TEAM_STYLE, clanTeamMeta } from "@/lib/gameData";
+import type { AttendanceStatus, ClanTeam, Member, MatchResult, MatchResultKill, Scrim, ScrimTeam, TeamSlot } from "@/lib/supabase/types";
+import { toastSuccess, toastError } from "../../toast";
 
 type SelectableStatus = Exclude<AttendanceStatus, "absent">;
 
@@ -25,6 +27,17 @@ interface Assignment {
   status: SelectableStatus;
 }
 
+interface LobbyState {
+  id: string | null;
+  position: string;
+  notes: string;
+  kills: Record<string, string>;
+}
+
+function emptyLobby(): LobbyState {
+  return { id: null, position: "", notes: "", kills: {} };
+}
+
 export default function ScrimAttendancePage() {
   const params = useParams<{ id: string }>();
   const scrimId = params.id;
@@ -39,15 +52,21 @@ export default function ScrimAttendancePage() {
   const [saved, setSaved] = useState(false);
   const [addingTeam, setAddingTeam] = useState(false);
 
+  const [lobbies, setLobbies] = useState<LobbyState[]>([emptyLobby()]);
+  const [removedResultIds, setRemovedResultIds] = useState<string[]>([]);
+  const [resultsSaving, setResultsSaving] = useState(false);
+  const [resultsSaved, setResultsSaved] = useState(false);
+
   const supabase = useMemo(() => createClient(), []);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [scrimRes, membersRes, teamsRes, attendanceRes] = await Promise.all([
+    const [scrimRes, membersRes, teamsRes, attendanceRes, resultsRes] = await Promise.all([
       supabase.from("scrims").select("*").eq("id", scrimId).single(),
       supabase.from("members").select("*").eq("status", "ACTIVE").order("ign"),
       supabase.from("scrim_teams").select("*").eq("scrim_id", scrimId).order("sort_order"),
       supabase.from("scrim_attendance").select("member_id, status, team_id, slot").eq("scrim_id", scrimId),
+      supabase.from("match_results").select("*").eq("scrim_id", scrimId).order("lobby_number"),
     ]);
 
     if (scrimRes.error) setError(scrimRes.error.message);
@@ -69,6 +88,32 @@ export default function ScrimAttendancePage() {
       setAssignments(map);
     }
 
+    const results = (resultsRes.data as MatchResult[]) ?? [];
+    if (results.length > 0) {
+      const resultIds = results.map((r) => r.id);
+      const killsRes = await supabase.from("match_result_kills").select("*").in("match_result_id", resultIds);
+      const killsByResult: Record<string, MatchResultKill[]> = {};
+      for (const k of (killsRes.data as MatchResultKill[]) ?? []) {
+        (killsByResult[k.match_result_id] ??= []).push(k);
+      }
+      const maxLobby = Math.max(...results.map((r) => r.lobby_number));
+      const nextLobbies: LobbyState[] = Array.from({ length: maxLobby }, () => emptyLobby());
+      for (const r of results) {
+        const kills: Record<string, string> = {};
+        for (const k of killsByResult[r.id] ?? []) kills[k.member_id] = String(k.kills);
+        nextLobbies[r.lobby_number - 1] = {
+          id: r.id,
+          position: String(r.position),
+          notes: r.notes ?? "",
+          kills,
+        };
+      }
+      setLobbies(nextLobbies);
+    } else {
+      setLobbies([emptyLobby()]);
+    }
+    setRemovedResultIds([]);
+
     setLoading(false);
   }, [supabase, scrimId]);
 
@@ -86,8 +131,10 @@ export default function ScrimAttendancePage() {
     setAddingTeam(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess("Team added.");
     setTeams((prev) => [...prev, data]);
   }
 
@@ -101,8 +148,10 @@ export default function ScrimAttendancePage() {
     const { error } = await supabase.from("scrim_teams").delete().eq("id", teamId);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess("Team deleted.");
     setTeams((prev) => prev.filter((t) => t.id !== teamId));
     setAssignments((prev) => {
       const next = { ...prev };
@@ -157,12 +206,134 @@ export default function ScrimAttendancePage() {
       .upsert(rows, { onConflict: "scrim_id,member_id" });
 
     setSaving(false);
-    if (error) setError(error.message);
-    else setSaved(true);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Attendance saved.");
+      setSaved(true);
+    }
   }
 
   const assignedMemberIds = new Set(Object.keys(assignments));
   const unassignedMembers = members.filter((m) => !assignedMemberIds.has(m.id));
+  const rosteredMembers = members.filter((m) => assignedMemberIds.has(m.id));
+
+  function setLobbyCount(count: number) {
+    const clamped = Math.max(1, Math.min(count, 20));
+    setLobbies((prev) => {
+      if (clamped > prev.length) {
+        return [...prev, ...Array.from({ length: clamped - prev.length }, () => emptyLobby())];
+      }
+      const removed = prev.slice(clamped).filter((l) => l.id);
+      if (removed.length > 0) {
+        setRemovedResultIds((ids) => [...ids, ...removed.map((l) => l.id as string)]);
+      }
+      return prev.slice(0, clamped);
+    });
+    setResultsSaved(false);
+  }
+
+  function updateLobby(index: number, patch: Partial<LobbyState>) {
+    setLobbies((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+    setResultsSaved(false);
+  }
+
+  function updateKill(index: number, memberId: string, value: string) {
+    setLobbies((prev) =>
+      prev.map((l, i) => (i === index ? { ...l, kills: { ...l.kills, [memberId]: value } } : l))
+    );
+    setResultsSaved(false);
+  }
+
+  async function handleSaveResults() {
+    setResultsSaving(true);
+    setError(null);
+
+    if (removedResultIds.length > 0) {
+      const { error: deleteError } = await supabase.from("match_results").delete().in("id", removedResultIds);
+      if (deleteError) {
+        setResultsSaving(false);
+        setError(deleteError.message);
+        toastError(deleteError.message);
+        return;
+      }
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    for (let i = 0; i < lobbies.length; i++) {
+      const lobby = lobbies[i];
+      const lobbyNumber = i + 1;
+      const position = parseInt(lobby.position, 10);
+      const hasPosition = lobby.position.trim() !== "" && position >= 1;
+
+      if (!hasPosition) {
+        if (lobby.id) {
+          const { error: deleteError } = await supabase.from("match_results").delete().eq("id", lobby.id);
+          if (deleteError) {
+            setResultsSaving(false);
+            setError(deleteError.message);
+            toastError(deleteError.message);
+            return;
+          }
+          updateLobby(i, { id: null });
+        }
+        continue;
+      }
+
+      const { data: mr, error: upsertError } = await supabase
+        .from("match_results")
+        .upsert(
+          {
+            scrim_id: scrimId,
+            lobby_number: lobbyNumber,
+            position,
+            notes: lobby.notes.trim() || null,
+            ...(lobby.id ? {} : { created_by: user?.id ?? null }),
+          },
+          { onConflict: "scrim_id,lobby_number" }
+        )
+        .select("id")
+        .single();
+
+      if (upsertError || !mr) {
+        setResultsSaving(false);
+        const message = upsertError?.message ?? "Failed to save lobby result.";
+        setError(message);
+        toastError(message);
+        return;
+      }
+
+      if (!lobby.id) updateLobby(i, { id: mr.id });
+
+      const killRows = rosteredMembers.map((m) => ({
+        match_result_id: mr.id,
+        member_id: m.id,
+        kills: parseInt(lobby.kills[m.id] || "0", 10) || 0,
+      }));
+
+      if (killRows.length > 0) {
+        const { error: killsError } = await supabase
+          .from("match_result_kills")
+          .upsert(killRows, { onConflict: "match_result_id,member_id" });
+        if (killsError) {
+          setResultsSaving(false);
+          setError(killsError.message);
+          toastError(killsError.message);
+          return;
+        }
+      }
+    }
+
+    setRemovedResultIds([]);
+    setResultsSaving(false);
+    setResultsSaved(true);
+    toastSuccess("Match results saved.");
+    load();
+  }
 
   return (
     <div>
@@ -228,13 +399,97 @@ export default function ScrimAttendancePage() {
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-text-dim">
                 {unassignedMembers.map((m) => (
-                  <span key={m.id}>
+                  <span key={m.id} className="inline-flex items-center gap-1.5">
                     {m.clan_tag} | {m.ign}
+                    <ClanTeamMark team={m.clan_team} />
                   </span>
                 ))}
               </div>
             </div>
           )}
+
+          <div className="mt-10 border-t border-line pt-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="eyebrow">Match results</div>
+              <label className="flex items-center gap-2.5 normal-case tracking-normal">
+                <span className="text-[11px] uppercase tracking-wide text-text-dim">Number of lobbies</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={lobbies.length}
+                  onChange={(e) => setLobbyCount(parseInt(e.target.value, 10) || 1)}
+                  className="!min-h-0 !w-16 !py-1.5 text-center"
+                />
+              </label>
+            </div>
+
+            {rosteredMembers.length === 0 ? (
+              <p className="text-sm text-text-dim">Assign players to a team above before logging kills.</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {lobbies.map((lobby, i) => {
+                  const teamKills = rosteredMembers.reduce(
+                    (sum, m) => sum + (parseInt(lobby.kills[m.id] || "0", 10) || 0),
+                    0
+                  );
+                  return (
+                    <div key={i} className="card">
+                      <div className="mb-3.5 flex items-center justify-between border-b border-line pb-3">
+                        <div className="font-display text-[13px] font-bold uppercase tracking-wide text-purple">
+                          Lobby {i + 1}
+                        </div>
+                        <div className="rank-badge">{teamKills} team kills</div>
+                      </div>
+                      <div className="mb-3.5 grid gap-3.5 sm:grid-cols-2">
+                        <div>
+                          <label>Placement</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={lobby.position}
+                            onChange={(e) => updateLobby(i, { position: e.target.value })}
+                            placeholder="e.g. 1"
+                          />
+                        </div>
+                        <div>
+                          <label>Notes</label>
+                          <input
+                            value={lobby.notes}
+                            onChange={(e) => updateLobby(i, { notes: e.target.value })}
+                            placeholder="e.g. Chicken dinner"
+                          />
+                        </div>
+                      </div>
+                      <label>Kill base</label>
+                      <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                        {rosteredMembers.map((m) => (
+                          <div key={m.id} className="flex items-center justify-between gap-2 border border-line bg-panel-2 px-2.5 py-1.5">
+                            <span className="truncate text-[12px] text-text">{m.ign}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={lobby.kills[m.id] ?? ""}
+                              onChange={(e) => updateKill(i, m.id, e.target.value)}
+                              placeholder="0"
+                              className="!min-h-0 !w-16 !py-1 text-center"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-5 flex items-center gap-3">
+              <button onClick={handleSaveResults} disabled={resultsSaving} className="btn btn-primary">
+                {resultsSaving ? "Saving…" : "Save results"}
+              </button>
+              {resultsSaved && <span className="text-[11px] uppercase tracking-wide text-green">Saved</span>}
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -356,8 +611,9 @@ function SlotGroup({
           const a = assignments[m.id];
           return (
             <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 border border-line bg-panel-2 px-2.5 py-2">
-              <span className="text-[12.5px] font-semibold text-text">
+              <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text">
                 {m.clan_tag} | {m.ign}
+                <ClanTeamMark team={m.clan_team} />
               </span>
               <div className="flex items-center gap-1">
                 {SELECTABLE_STATUSES.map((s) => (
@@ -413,9 +669,10 @@ function SlotGroup({
                     onAssign(m.id, team.id, slot);
                     setQuery("");
                   }}
-                  className="block w-full px-3 py-2 text-left text-[12.5px] text-text hover:bg-purple/10 hover:text-purple"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[12.5px] text-text hover:bg-purple/10 hover:text-purple"
                 >
-                  {m.clan_tag} | {m.ign}
+                  <span>{m.clan_tag} | {m.ign}</span>
+                  <ClanTeamMark team={m.clan_team} />
                 </button>
               ))}
             </div>
@@ -423,5 +680,15 @@ function SlotGroup({
         </div>
       )}
     </div>
+  );
+}
+
+function ClanTeamMark({ team }: { team: ClanTeam | null | undefined }) {
+  const meta = clanTeamMeta(team);
+  if (!meta) return null;
+  return (
+    <span className={`border px-1.5 py-[1px] text-[8.5px] font-semibold uppercase tracking-wide ${CLAN_TEAM_STYLE[meta.id]}`}>
+      {meta.label}
+    </span>
   );
 }

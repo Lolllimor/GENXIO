@@ -1,6 +1,8 @@
 export type MemberStatus = "ACTIVE" | "INACTIVE";
 export type Mode = "MP" | "BR" | "Hybrid";
 export type Activity = "Low" | "Average" | "High";
+export type ClanTeam = "e-sport" | "elites" | "underdog";
+export type HistoryEventType = "added" | "assigned" | "promoted" | "demoted" | "unassigned" | "exited";
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 export type RosterStatus = "pending" | "accepted" | "rejected";
 
@@ -11,6 +13,7 @@ export interface Member {
   whatsapp_name: string | null;
   whatsapp_number: string | null;
   status: MemberStatus;
+  clan_team: ClanTeam | null;
   mode: Mode | null;
   mp_role: string | null;
   device: string | null;
@@ -27,6 +30,17 @@ export interface Member {
   country: string | null;
   device_serial_number: string | null;
   joined_at: string;
+  created_at: string;
+}
+
+export interface MemberHistory {
+  id: string;
+  member_id: string | null;
+  ign: string;
+  event_type: HistoryEventType;
+  from_team: ClanTeam | null;
+  to_team: ClanTeam | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -115,12 +129,19 @@ export interface ScrimAttendance {
 
 export interface MatchResult {
   id: string;
-  match_date: string;
+  scrim_id: string;
+  lobby_number: number;
   position: number;
-  mode: Mode | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+export interface MatchResultKill {
+  id: string;
+  match_result_id: string;
+  member_id: string;
+  kills: number;
 }
 
 export interface NewsPost {

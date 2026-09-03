@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { OrgSettings } from "@/lib/supabase/types";
+import { toastSuccess, toastError } from "../toast";
 
 const EMPTY_FORM = {
   organization_name: "",
@@ -61,8 +62,13 @@ export default function SettingsPage() {
       .eq("id", true);
 
     setSaving(false);
-    if (error) setError(error.message);
-    else setSaved(true);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Settings saved.");
+      setSaved(true);
+    }
   }
 
   return (

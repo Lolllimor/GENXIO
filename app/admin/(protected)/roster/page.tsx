@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
+import { useEffect, useState, FormEvent, useCallback, useMemo, Fragment } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { MP_OPERATORS, BR_CLASSES, ACTIVITY_LEVELS } from "@/lib/gameData";
-import type { Member, MemberStatus, Mode, Activity, MemberAttendanceStats } from "@/lib/supabase/types";
+import { MP_OPERATORS, BR_CLASSES, ACTIVITY_LEVELS, CLAN_TEAMS, CLAN_TEAM_STYLE, clanTeamMeta } from "@/lib/gameData";
+import type { Member, MemberStatus, Mode, Activity, ClanTeam, MemberAttendanceStats, MemberHistory } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import Timeline from "../history/Timeline";
+import { toastSuccess, toastError } from "../toast";
+
+type TeamFilter = ClanTeam | "all" | "unassigned";
+
+const TEAM_RANK: Record<string, number> = Object.fromEntries(CLAN_TEAMS.map((t) => [t.id, t.rank]));
+
+function clanTeamError(message: string) {
+  if (!/clan_team/i.test(message)) return message;
+  return "Run supabase/add_clan_teams.sql in the Supabase SQL editor, then try again.";
+}
 
 const EMPTY_FORM = {
   ign: "",
   status: "ACTIVE" as MemberStatus,
+  clan_team: "" as ClanTeam | "",
   mode: "" as Mode | "",
   mp_role: "",
   device: "",
@@ -47,17 +60,55 @@ export default function RosterPage() {
   const [exitingMember, setExitingMember] = useState<Member | null>(null);
   const [exitForm, setExitForm] = useState(EMPTY_EXIT_FORM);
   const [exitSaving, setExitSaving] = useState(false);
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
+  const [savingTeamId, setSavingTeamId] = useState<string | null>(null);
+  const [recentHistory, setRecentHistory] = useState<MemberHistory[]>([]);
 
   const supabase = useMemo(() => createClient(), []);
 
+  const groupedMembers = useMemo(() => {
+    const rank = (m: Member) => TEAM_RANK[m.clan_team ?? ""] ?? 99;
+    const sorted = [...members].sort((a, b) => {
+      const byTeam = rank(a) - rank(b);
+      if (byTeam !== 0) return byTeam;
+      return a.ign.localeCompare(b.ign);
+    });
+    const visible = sorted.filter((m) => {
+      if (teamFilter === "all") return true;
+      if (teamFilter === "unassigned") return !m.clan_team;
+      return m.clan_team === teamFilter;
+    });
+
+    const keys: Array<ClanTeam | null> =
+      teamFilter === "all"
+        ? [...CLAN_TEAMS.map((t) => t.id), null]
+        : teamFilter === "unassigned"
+          ? [null]
+          : [teamFilter];
+
+    return keys
+      .map((key) => {
+        const meta = key ? clanTeamMeta(key) : null;
+        return {
+          key,
+          label: meta?.label ?? "Unassigned",
+          hint: meta?.hint ?? null,
+          rows: visible.filter((m) => (key ? m.clan_team === key : !m.clan_team)),
+        };
+      })
+      .filter((g) => g.rows.length > 0 || teamFilter !== "all");
+  }, [members, teamFilter]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const [membersRes, attendanceRes] = await Promise.all([
+    const [membersRes, attendanceRes, historyRes] = await Promise.all([
       supabase.from("members").select("*").order("created_at", { ascending: false }),
       supabase.from("member_attendance_stats").select("*"),
+      supabase.from("member_history").select("*").order("created_at", { ascending: false }).limit(12),
     ]);
     if (membersRes.error) setError(membersRes.error.message);
     else setMembers(membersRes.data ?? []);
+    if (!historyRes.error) setRecentHistory(historyRes.data ?? []);
 
     if (attendanceRes.data) {
       const map: Record<string, MemberAttendanceStats> = {};
@@ -77,6 +128,7 @@ export default function RosterPage() {
     setForm({
       ign: m.ign,
       status: m.status,
+      clan_team: m.clan_team ?? "",
       mode: m.mode ?? "",
       mp_role: m.mp_role ?? "",
       device: m.device ?? "",
@@ -113,6 +165,7 @@ export default function RosterPage() {
     const payload = {
       ign: form.ign.trim(),
       status: form.status,
+      clan_team: form.clan_team || null,
       mode: form.mode || null,
       mp_role: form.mp_role.trim() || null,
       device: form.device.trim() || null,
@@ -138,18 +191,50 @@ export default function RosterPage() {
 
     setSaving(false);
     if (error) {
-      setError(error.message);
+      const message = clanTeamError(error.message);
+      setError(message);
+      toastError(message);
       return;
     }
+    toastSuccess(editingId ? "Member updated." : "Member added to roster.");
     resetForm();
     load();
+  }
+
+  async function handleTeamChange(id: string, clan_team: ClanTeam | "") {
+    const previous = members.find((m) => m.id === id)?.clan_team ?? null;
+    const next = clan_team || null;
+    setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, clan_team: next } : m)));
+    setSavingTeamId(id);
+    const { error } = await supabase.from("members").update({ clan_team: next }).eq("id", id);
+    setSavingTeamId(null);
+    if (error) {
+      setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, clan_team: previous } : m)));
+      const message = clanTeamError(error.message);
+      setError(message);
+      toastError(message);
+      return;
+    }
+    const label = clanTeamMeta(next)?.label ?? "Unassigned";
+    toastSuccess(`${label} spot saved.`);
+    const { data } = await supabase
+      .from("member_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(12);
+    if (data) setRecentHistory(data);
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Permanently delete this member? Consider “Log exit” instead to keep history.")) return;
     const { error } = await supabase.from("members").delete().eq("id", id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Member deleted.");
+      load();
+    }
   }
 
   function startExit(m: Member) {
@@ -188,6 +273,7 @@ export default function RosterPage() {
     if (exitError) {
       setExitSaving(false);
       setError(exitError.message);
+      toastError(exitError.message);
       return;
     }
 
@@ -199,8 +285,10 @@ export default function RosterPage() {
     setExitSaving(false);
     if (statusError) {
       setError(statusError.message);
+      toastError(statusError.message);
       return;
     }
+    toastSuccess("Exit logged.");
     setExitingMember(null);
     load();
   }
@@ -214,17 +302,22 @@ export default function RosterPage() {
             Members
           </h1>
         </div>
-        <button
-          onClick={() => {
-            setForm(EMPTY_FORM);
-            setEditingId(null);
-            setExitingMember(null);
-            setShowForm(true);
-          }}
-          className="btn btn-primary !py-2.5 !text-[11px]"
-        >
-          Add member
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/history" className="btn btn-outline !py-2.5 !text-[11px]">
+            Timeline
+          </Link>
+          <button
+            onClick={() => {
+              setForm(EMPTY_FORM);
+              setEditingId(null);
+              setExitingMember(null);
+              setShowForm(true);
+            }}
+            className="btn btn-primary !py-2.5 !text-[11px]"
+          >
+            Add member
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -300,6 +393,20 @@ export default function RosterPage() {
                 <option value="INACTIVE">Inactive</option>
               </select>
             </div>
+          </div>
+          <div className="mb-3.5">
+            <label>Clan team</label>
+            <select
+              value={form.clan_team}
+              onChange={(e) => setForm((f) => ({ ...f, clan_team: e.target.value as ClanTeam | "" }))}
+            >
+              <option value="">Unassigned</option>
+              {CLAN_TEAMS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label} — {t.hint}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="mb-3.5 grid gap-3.5 sm:grid-cols-2">
             <div>
@@ -430,72 +537,157 @@ export default function RosterPage() {
       ) : members.length === 0 ? (
         <p className="text-sm text-text-dim">No members yet — add the first one above.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
-                <th className="py-2.5 pr-4 font-display">IGN</th>
-                <th className="py-2.5 pr-4 font-display">Status</th>
-                <th className="py-2.5 pr-4 font-display">Mode</th>
-                <th className="py-2.5 pr-4 font-display">Role</th>
-                <th className="py-2.5 pr-4 font-display">WhatsApp</th>
-                <th className="py-2.5 pr-4 font-display">Attendance</th>
-                <th className="py-2.5 pr-4 font-display"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => {
-                const stats = attendance[m.id];
-                return (
-                  <tr key={m.id} className="border-b border-line/60">
-                    <td className="py-3 pr-4 font-semibold text-text">
-                      {m.clan_tag} | {m.ign}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`text-[11px] font-semibold uppercase tracking-wide ${
-                          m.status === "ACTIVE" ? "text-green" : "text-text-dim"
-                        }`}
-                      >
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-text-dim">{m.mode ?? "—"}</td>
-                    <td className="py-3 pr-4 text-text-dim">{m.mp_role ?? "—"}</td>
-                    <td className="py-3 pr-4 text-text-dim">{m.whatsapp_number ?? "—"}</td>
-                    <td className="py-3 pr-4 text-text-dim">
-                      {stats && stats.matches_recorded > 0
-                        ? `${Math.round(stats.attendance_pct * 100)}% (${stats.matches_played}/${stats.matches_recorded})`
-                        : "—"}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => startEdit(m)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-purple hover:brightness-125"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => startExit(m)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-amber hover:brightness-125"
-                        >
-                          Log exit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(m.id)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-red hover:brightness-125"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {([
+              { id: "all" as const, label: "All", count: members.length },
+              ...CLAN_TEAMS.map((t) => ({
+                id: t.id,
+                label: t.label,
+                count: members.filter((m) => m.clan_team === t.id).length,
+              })),
+              {
+                id: "unassigned" as const,
+                label: "Unassigned",
+                count: members.filter((m) => !m.clan_team).length,
+              },
+            ]).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setTeamFilter(f.id)}
+                className={`border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide [clip-path:polygon(4px_0,100%_0,100%_calc(100%-4px),calc(100%-4px)_100%,0_100%,0_4px)] ${
+                  teamFilter === f.id ? "border-purple bg-purple/10 text-purple" : "border-line text-text-dim"
+                }`}
+              >
+                {f.label} ({f.count})
+              </button>
+            ))}
+          </div>
+
+          {groupedMembers.every((g) => g.rows.length === 0) && (
+            <p className="mb-4 text-sm text-text-dim">No members on this team yet.</p>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
+                  <th className="py-2.5 pr-4 font-display">IGN</th>
+                  <th className="py-2.5 pr-4 font-display">Team</th>
+                  <th className="py-2.5 pr-4 font-display">Status</th>
+                  <th className="py-2.5 pr-4 font-display">Mode</th>
+                  <th className="py-2.5 pr-4 font-display">Role</th>
+                  <th className="py-2.5 pr-4 font-display">WhatsApp</th>
+                  <th className="py-2.5 pr-4 font-display">Attendance</th>
+                  <th className="py-2.5 pr-4 font-display"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupedMembers.map((group) => (
+                  <Fragment key={group.key ?? "unassigned"}>
+                    {teamFilter === "all" && (
+                      <tr className="border-b border-line/60 bg-panel-2/50">
+                        <td colSpan={8} className="py-2 pr-4">
+                          <span
+                            className={`border px-2 py-[2px] text-[9.5px] font-semibold uppercase tracking-wide ${
+                              group.key ? CLAN_TEAM_STYLE[group.key] : "border-line text-text-dim"
+                            }`}
+                          >
+                            {group.label}
+                            {group.hint ? ` · ${group.hint}` : ""}
+                          </span>
+                          <span className="ml-2 text-[10.5px] text-text-dim">{group.rows.length}</span>
+                        </td>
+                      </tr>
+                    )}
+                    {group.rows.map((m) => {
+                      const stats = attendance[m.id];
+                      return (
+                        <tr key={m.id} className="border-b border-line/60">
+                          <td className="py-3 pr-4 font-semibold text-text">
+                            {m.clan_tag} | {m.ign}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <select
+                              value={m.clan_team ?? ""}
+                              disabled={savingTeamId === m.id}
+                              onChange={(e) => handleTeamChange(m.id, e.target.value as ClanTeam | "")}
+                              className="!min-h-0 !w-[148px] !py-1.5 !pr-7 !text-[11px]"
+                            >
+                              <option value="">Unassigned</option>
+                              {CLAN_TEAMS.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <span
+                              className={`text-[11px] font-semibold uppercase tracking-wide ${
+                                m.status === "ACTIVE" ? "text-green" : "text-text-dim"
+                              }`}
+                            >
+                              {m.status}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 text-text-dim">{m.mode ?? "—"}</td>
+                          <td className="py-3 pr-4 text-text-dim">{m.mp_role ?? "—"}</td>
+                          <td className="py-3 pr-4 text-text-dim">{m.whatsapp_number ?? "—"}</td>
+                          <td className="py-3 pr-4 text-text-dim">
+                            {stats && stats.matches_recorded > 0
+                              ? `${Math.round(stats.attendance_pct * 100)}% (${stats.matches_played}/${stats.matches_recorded})`
+                              : "—"}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex gap-3">
+                              <Link
+                                href={`/admin/history?member=${m.id}`}
+                                className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-text"
+                              >
+                                History
+                              </Link>
+                              <button
+                                onClick={() => startEdit(m)}
+                                className="text-[11px] font-semibold uppercase tracking-wide text-purple hover:brightness-125"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => startExit(m)}
+                                className="text-[11px] font-semibold uppercase tracking-wide text-amber hover:brightness-125"
+                              >
+                                Log exit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(m.id)}
+                                className="text-[11px] font-semibold uppercase tracking-wide text-red hover:brightness-125"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {recentHistory.length > 0 && (
+            <div className="mt-10 border-t border-line pt-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="eyebrow">Recent timeline</div>
+                <Link href="/admin/history" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
+                  View all →
+                </Link>
+              </div>
+              <Timeline events={recentHistory} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

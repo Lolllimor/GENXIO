@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { NewsPost } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import { toastSuccess, toastError } from "../toast";
 
 const EMPTY_FORM = {
   tag: "Announcement",
@@ -83,8 +84,10 @@ export default function AdminNewsPage() {
     setSaving(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess(editingId ? "Post updated." : "Post published.");
     resetForm();
     load();
   }
@@ -94,15 +97,25 @@ export default function AdminNewsPage() {
       .from("news_posts")
       .update({ published: !p.published })
       .eq("id", p.id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess(p.published ? "Post unpublished." : "Post published.");
+      load();
+    }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this post?")) return;
     const { error } = await supabase.from("news_posts").delete().eq("id", id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Post deleted.");
+      load();
+    }
   }
 
   return (

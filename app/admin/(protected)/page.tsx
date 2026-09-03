@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import PositionChart from "./results/PositionChart";
+import PositionChart, { type ChartPoint } from "./results/PositionChart";
 
 const ROSTER_STATUS_STYLE: Record<string, string> = {
   pending: "border-amber bg-amber/10 text-amber",
@@ -18,7 +18,7 @@ export default async function AdminDashboard() {
     supabase.from("news_posts").select("id, published"),
     supabase.from("achievements").select("id, published"),
     supabase.from("applications").select("*").order("submitted_at", { ascending: false }),
-    supabase.from("match_results").select("*").order("match_date", { ascending: false }).limit(10),
+    supabase.from("match_results").select("id, position, notes, scrims(scrim_date, opponent)"),
     supabase.from("scrim_attendance").select("scrim_id, status"),
   ]);
 
@@ -40,7 +40,20 @@ export default async function AdminDashboard() {
     }
   }
 
-  const chartResults = [...(matchResults.data ?? [])].reverse();
+  type RawResult = {
+    id: string;
+    position: number;
+    notes: string | null;
+    scrims: { scrim_date: string; opponent: string | null } | { scrim_date: string; opponent: string | null }[] | null;
+  };
+  const chartPoints: ChartPoint[] = ((matchResults.data as RawResult[]) ?? [])
+    .map((r) => {
+      const scrim = Array.isArray(r.scrims) ? r.scrims[0] : r.scrims;
+      return { id: r.id, date: scrim?.scrim_date ?? "", position: r.position, label: scrim?.opponent ?? undefined };
+    })
+    .filter((p) => p.date)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-10);
 
   return (
     <div>
@@ -83,7 +96,7 @@ export default async function AdminDashboard() {
             View all →
           </Link>
         </div>
-        <PositionChart results={chartResults} />
+        <PositionChart points={chartPoints} />
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">

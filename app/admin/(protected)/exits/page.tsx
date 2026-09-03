@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exit, Member } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import { toastSuccess, toastError } from "../toast";
 
 const EMPTY_FORM = {
   ign: "",
@@ -99,6 +100,7 @@ export default function ExitsPage() {
     if (error) {
       setSaving(false);
       setError(error.message);
+      toastError(error.message);
       return;
     }
 
@@ -107,6 +109,7 @@ export default function ExitsPage() {
     }
 
     setSaving(false);
+    toastSuccess("Exit logged.");
     resetForm();
     load();
   }
@@ -114,8 +117,13 @@ export default function ExitsPage() {
   async function handleDelete(id: string) {
     if (!confirm("Delete this exit record?")) return;
     const { error } = await supabase.from("exits").delete().eq("id", id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Exit record deleted.");
+      load();
+    }
   }
 
   return (

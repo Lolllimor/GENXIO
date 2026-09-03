@@ -5,11 +5,14 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Scrim } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import RowMenu from "../RowMenu";
+import { toastSuccess, toastError } from "../toast";
 
 export default function ScrimsPage() {
   const [scrims, setScrims] = useState<Scrim[]>([]);
   const [attendeeCounts, setAttendeeCounts] = useState<Record<string, number>>({});
   const [teamCounts, setTeamCounts] = useState<Record<string, number>>({});
+  const [resultCounts, setResultCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -27,14 +30,17 @@ export default function ScrimsPage() {
   const [detailSaving, setDetailSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [scrimToDelete, setScrimToDelete] = useState<Scrim | null>(null);
+
   const supabase = useMemo(() => createClient(), []);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [scrimsRes, attendanceRes, teamsRes] = await Promise.all([
+    const [scrimsRes, attendanceRes, teamsRes, resultsRes] = await Promise.all([
       supabase.from("scrims").select("*").order("scrim_date", { ascending: false }),
       supabase.from("scrim_attendance").select("scrim_id, status"),
       supabase.from("scrim_teams").select("scrim_id"),
+      supabase.from("match_results").select("scrim_id"),
     ]);
 
     if (scrimsRes.error) setError(scrimsRes.error.message);
@@ -56,6 +62,14 @@ export default function ScrimsPage() {
         counts[row.scrim_id] = (counts[row.scrim_id] ?? 0) + 1;
       }
       setTeamCounts(counts);
+    }
+
+    if (resultsRes.data) {
+      const counts: Record<string, number> = {};
+      for (const row of resultsRes.data) {
+        counts[row.scrim_id] = (counts[row.scrim_id] ?? 0) + 1;
+      }
+      setResultCounts(counts);
     }
 
     setLoading(false);
@@ -84,8 +98,10 @@ export default function ScrimsPage() {
     setSaving(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess("Scrim created.");
     setOpponent("");
     setNotes("");
     setShowForm(false);
@@ -122,27 +138,35 @@ export default function ScrimsPage() {
     setDetailSaving(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess("Scrim updated.");
     setSelectedScrim({ ...selectedScrim, ...payload });
     setDetailMode("view");
     load();
   }
 
-  async function handleDelete() {
-    if (!selectedScrim) return;
-    if (!confirm("Delete this scrim? Its attendance and team records will be deleted too.")) return;
+  function requestDelete(s: Scrim) {
+    setScrimToDelete(s);
+  }
+
+  async function confirmDelete() {
+    if (!scrimToDelete) return;
     setDeleting(true);
     setError(null);
 
-    const { error } = await supabase.from("scrims").delete().eq("id", selectedScrim.id);
+    const { error } = await supabase.from("scrims").delete().eq("id", scrimToDelete.id);
 
     setDeleting(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
-    closeDetail();
+    toastSuccess("Scrim deleted.");
+    if (selectedScrim?.id === scrimToDelete.id) closeDetail();
+    setScrimToDelete(null);
     load();
   }
 
@@ -214,12 +238,15 @@ export default function ScrimsPage() {
             </div>
             {selectedScrim.notes && <p className="mt-2 text-sm text-text-dim">{selectedScrim.notes}</p>}
 
-            <div className="mt-4 flex gap-4 border-t border-line pt-4 text-xs text-text-dim">
+            <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-line pt-4 text-xs text-text-dim">
               <span>
                 <span className="font-semibold text-text">{attendeeCounts[selectedScrim.id] ?? 0}</span> attended
               </span>
               <span>
                 <span className="font-semibold text-text">{teamCounts[selectedScrim.id] ?? 0}</span> team(s)
+              </span>
+              <span>
+                <span className="font-semibold text-text">{resultCounts[selectedScrim.id] ?? 0}</span> lobby result(s)
               </span>
             </div>
 
@@ -227,7 +254,7 @@ export default function ScrimsPage() {
               href={`/admin/scrims/${selectedScrim.id}`}
               className="btn btn-outline mt-5 w-full !py-2.5 !text-[11px]"
             >
-              Manage attendance →
+              Manage attendance &amp; results →
             </Link>
 
             <div className="mt-3 flex gap-3">
@@ -236,11 +263,10 @@ export default function ScrimsPage() {
               </button>
               <button
                 type="button"
-                onClick={handleDelete}
-                disabled={deleting}
+                onClick={() => requestDelete(selectedScrim)}
                 className="btn btn-outline flex-1 !border-red !text-red hover:!shadow-none"
               >
-                {deleting ? "Deleting…" : "Delete"}
+                Delete
               </button>
             </div>
           </div>
@@ -262,6 +288,7 @@ export default function ScrimsPage() {
               <label>Notes</label>
               <input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
             </div>
+
             <div className="flex gap-3">
               <button type="submit" disabled={detailSaving} className="btn btn-primary flex-1">
                 {detailSaving ? "Saving…" : "Save changes"}
@@ -274,40 +301,89 @@ export default function ScrimsPage() {
         )}
       </Modal>
 
+      <Modal open={scrimToDelete !== null} onClose={() => setScrimToDelete(null)} title="Delete scrim?" accent="amber">
+        {scrimToDelete && (
+          <div>
+            <p className="text-sm text-text-dim">
+              Delete <span className="font-semibold text-text">{scrimToDelete.opponent || "Internal scrim"}</span> (
+              {new Date(scrimToDelete.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+              )? Its attendance, teams, and results will be deleted too. This can&apos;t be undone.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="btn btn-primary flex-1 !bg-red !shadow-none"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+              <button type="button" onClick={() => setScrimToDelete(null)} className="btn btn-outline flex-1">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {loading ? (
         <p className="text-sm text-text-dim">Loading scrims…</p>
       ) : scrims.length === 0 ? (
         <p className="text-sm text-text-dim">No scrims logged yet.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {scrims.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => openDetail(s)}
-              className="card flex items-center justify-between gap-4 text-left"
-            >
-              <div>
-                <div className="font-display text-[13px] font-bold tracking-wide text-purple">
-                  {new Date(s.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-                <div className="mt-1 text-sm font-semibold text-text">
-                  {s.opponent || "Internal scrim"}
-                </div>
-                {s.notes && <p className="mt-1 text-xs text-text-dim">{s.notes}</p>}
-                <div className="mt-2 flex gap-3 text-[11px] text-text-dim">
-                  <span>{attendeeCounts[s.id] ?? 0} attended</span>
-                  <span>{teamCounts[s.id] ?? 0} team(s)</span>
-                </div>
-              </div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-text-dim">
-                Details →
-              </span>
-            </button>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left text-[13px]">
+            <thead>
+              <tr className="border-b border-line text-[10.5px] uppercase tracking-[0.1em] text-text-dim">
+                <th className="py-2.5 pr-4 font-display">Date</th>
+                <th className="py-2.5 pr-4 font-display">Opponent</th>
+                <th className="py-2.5 pr-4 font-display">Attended</th>
+                <th className="py-2.5 pr-4 font-display">Teams</th>
+                <th className="py-2.5 pr-4 font-display">Results</th>
+                <th className="py-2.5 pr-4 font-display"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {scrims.map((s) => (
+                <tr key={s.id} className="border-b border-line/60 hover:bg-panel-2">
+                  <td className="py-3 pr-4 font-display font-bold tracking-wide text-purple">
+                    {new Date(s.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </td>
+                  <td className="py-3 pr-4 font-semibold text-text">
+                    {s.opponent || "Internal scrim"}
+                    {s.notes && <div className="mt-0.5 text-[11px] font-normal text-text-dim">{s.notes}</div>}
+                  </td>
+                  <td className="py-3 pr-4 text-text-dim">{attendeeCounts[s.id] ?? 0}</td>
+                  <td className="py-3 pr-4 text-text-dim">{teamCounts[s.id] ?? 0}</td>
+                  <td className="py-3 pr-4 text-text-dim">
+                    {resultCounts[s.id] > 0 ? (
+                      <span className="text-purple">{resultCounts[s.id]} lobby result(s)</span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 text-right">
+                    <RowMenu
+                      onView={() => openDetail(s)}
+                      onEdit={() => {
+                        openDetail(s);
+                        setDetailMode("edit");
+                      }}
+                      onDelete={() => requestDelete(s)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

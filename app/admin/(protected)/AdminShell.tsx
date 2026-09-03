@@ -1,9 +1,32 @@
 "use client";
 
+import "@mantine/core/styles.css";
+import "@mantine/notifications/styles.css";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MantineProvider, createTheme, type CSSVariablesResolver } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
+
+const mantineTheme = createTheme({
+  primaryColor: "grape",
+  fontFamily: "var(--font-mono)",
+  headings: { fontFamily: "var(--font-display)" },
+  defaultRadius: 0,
+});
+
+// Mantine's own stylesheet sets a background/text color on <body> via
+// these variables — point them at our tokens instead of its defaults,
+// otherwise Mantine's dark theme quietly overrides the site's own bg.
+const cssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {},
+  light: {},
+  dark: {
+    "--mantine-color-body": "var(--bg)",
+    "--mantine-color-text": "var(--text)",
+  },
+});
 
 function Icon({ d }: { d: string }) {
   return (
@@ -22,6 +45,7 @@ const ICONS = {
   news: "M4 4h13v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Zm13 4h3v10a2 2 0 0 1-2 2h-1M8 8h6M8 12h6M8 16h4",
   achievements: "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 4h3a2 2 0 0 1-2 4M7 4H4a2 2 0 0 0 2 4",
   results: "M4 20V10M11 20V4M18 20v-7M3 20h18",
+  history: "M12 8v4l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20",
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3a7.97 7.97 0 0 0-.3-2.2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.9-1.1L15 2h-6l-.4 2.7a8 8 0 0 0-1.9 1.1l-2.5-1-2 3.4 2.1 1.6A8 8 0 0 0 4 12c0 .75.1 1.48.3 2.2l-2.1 1.6 2 3.4 2.5-1c.57.46 1.2.83 1.9 1.1L9 22h6l.4-2.7c.7-.27 1.33-.64 1.9-1.1l2.5 1 2-3.4-2.1-1.6c.2-.72.3-1.45.3-2.2Z",
 };
 
@@ -29,6 +53,7 @@ const LINKS = [
   { href: "/admin", label: "Dashboard", exact: true, icon: ICONS.dashboard },
   { href: "/admin/applications", label: "Applications", icon: ICONS.applications },
   { href: "/admin/roster", label: "Roster", icon: ICONS.roster },
+  { href: "/admin/history", label: "Timeline", icon: ICONS.history },
   { href: "/admin/scrims", label: "Scrims", icon: ICONS.scrims },
   { href: "/admin/results", label: "Match Results", icon: ICONS.results },
   { href: "/admin/exits", label: "Exits", icon: ICONS.exits },
@@ -57,6 +82,8 @@ export default function AdminShell({
   }
 
   return (
+    <MantineProvider theme={mantineTheme} defaultColorScheme="dark" cssVariablesResolver={cssVariablesResolver}>
+    <Notifications position="top-right" limit={4} />
     <div className="flex min-h-screen w-full flex-col md:flex-row">
       <aside className="flex shrink-0 flex-col border-b border-line bg-panel/40 px-5 py-5 md:sticky md:top-0 md:h-screen md:w-64 md:border-b-0 md:border-r md:px-5 md:py-7">
         <div className="mb-8">
@@ -122,5 +149,6 @@ export default function AdminShell({
         </main>
       </div>
     </div>
+    </MantineProvider>
   );
 }

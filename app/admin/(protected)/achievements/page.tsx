@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Achievement } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import { toastSuccess, toastError } from "../toast";
 
 const EMPTY_FORM = {
   result: "",
@@ -83,8 +84,10 @@ export default function AdminAchievementsPage() {
     setSaving(false);
     if (error) {
       setError(error.message);
+      toastError(error.message);
       return;
     }
+    toastSuccess(editingId ? "Achievement updated." : "Achievement added.");
     resetForm();
     load();
   }
@@ -94,15 +97,25 @@ export default function AdminAchievementsPage() {
       .from("achievements")
       .update({ published: !a.published })
       .eq("id", a.id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess(a.published ? "Achievement unpublished." : "Achievement published.");
+      load();
+    }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this achievement?")) return;
     const { error } = await supabase.from("achievements").delete().eq("id", id);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+    } else {
+      toastSuccess("Achievement deleted.");
+      load();
+    }
   }
 
   return (
