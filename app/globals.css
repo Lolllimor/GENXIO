@@ -772,3 +772,36 @@ html.is-admin .card:hover {
   color: var(--purple);
   box-shadow: 0 0 16px rgb(var(--grid-rgb) / 0.22);
 }
+
+/* ---------- navbar zing ---------- */
+
+@keyframes nav-line-flow {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.nav-line {
+  background: linear-gradient(90deg, transparent, var(--purple), var(--amber), var(--purple), transparent);
+  background-size: 200% 100%;
+  animation: nav-line-flow 6s linear infinite;
+}
+
+@keyframes btn-sheen {
+  0% { transform: translateX(-120%) skewX(-20deg); }
+  60%, 100% { transform: translateX(260%) skewX(-20deg); }
+}
+
+.btn-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  animation: btn-sheen 3.2s ease-in-out infinite;
+  pointer-events: none;
+}

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import TikTokEmbed from "./components/TikTokEmbed";
 import { getOrgTikTokEmbed } from "@/lib/org-socials";
@@ -36,11 +37,17 @@ export default async function Home() {
 
   return (
     <>
-      <section className="relative overflow-hidden px-5 pb-14 pt-16 md:px-8 md:pb-[70px] md:pt-[90px]">
-        <div
-          className="pointer-events-none absolute right-[-160px] top-1/2 h-[380px] w-[380px] -translate-y-1/2 bg-contain bg-center bg-no-repeat grayscale md:right-[-120px] md:h-[640px] md:w-[640px]"
-          style={{ backgroundImage: "url(/logo.jpg)", opacity: "var(--decoration-opacity)" }}
+      <section className="relative -mt-[76px] flex min-h-[580px] items-center overflow-hidden px-5 pb-16 pt-[140px] md:min-h-[clamp(600px,48vw,740px)] md:px-8 md:pb-[80px] md:pt-[150px]">
+        <Image
+          src="/hero-bg.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="pointer-events-none object-cover object-[75%_center] saturate-[1.15] brightness-110 md:object-center"
         />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-bg/95 via-bg/80 via-[45%] to-transparent to-[85%] md:from-bg/95 md:via-bg/70 md:via-[40%]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-bg to-transparent" />
         <div className="light-shaft -left-1/4 -top-10" />
         {EMBERS.map((e, i) => (
           <span
@@ -58,27 +65,7 @@ export default async function Home() {
             }}
           />
         ))}
-        <svg
-          className="reticle pointer-events-none absolute right-[6%] top-[18%] hidden h-[140px] w-[140px] text-purple md:block"
-          viewBox="0 0 100 100"
-          fill="none"
-          stroke="currentColor"
-        >
-          <circle cx="50" cy="50" r="34" strokeWidth="0.75" opacity="0.5" />
-          <circle cx="50" cy="50" r="2" fill="currentColor" stroke="none" />
-          <line x1="50" y1="2" x2="50" y2="18" strokeWidth="1" />
-          <line x1="50" y1="82" x2="50" y2="98" strokeWidth="1" />
-          <line x1="2" y1="50" x2="18" y2="50" strokeWidth="1" />
-          <line x1="82" y1="50" x2="98" y2="50" strokeWidth="1" />
-        </svg>
-        <div className="chevron-marker absolute bottom-[8%] right-[16%] hidden md:flex">
-          {[0, 1, 2].map((i) => (
-            <svg key={i} width="18" height="10" viewBox="0 0 18 10" fill="none" className="text-purple">
-              <path d="M1 1l8 8 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ))}
-        </div>
-        <div className="relative z-10 mx-auto max-w-5xl">
+        <div className="relative z-10 mx-auto w-full max-w-5xl">
           <div className="mb-3 flex flex-wrap items-center gap-4">
             <div className="eyebrow">GenXio Esports — Call of Duty Mobile</div>
             <span className="live-dot">Recruiting</span>
@@ -86,7 +73,7 @@ export default async function Home() {
           <h1 className="font-display max-w-2xl text-[38px] font-bold uppercase leading-[1.02] tracking-tight md:text-[64px]">
             Play. Evolve. <span className="text-purple [text-shadow:0_0_28px_rgba(139,92,246,0.55)]">Dominate.</span>
           </h1>
-          <p className="mt-4 max-w-lg text-[13px] leading-[1.7] text-text-dim md:mt-[18px] md:text-[15px]">
+          <p className="mt-4 max-w-lg text-[13px] text-text/90 [text-shadow:0_1px_12px_rgba(0,0,0,0.9)] leading-[1.7] md:mt-[18px] md:text-[15px]">
             GenXio is a competitive Call of Duty Mobile clan built on discipline, skill, and
             unity. We recruit players who want to get better, not just play — MP grinders, BR
             strategists, and everything in between.
