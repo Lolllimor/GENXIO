@@ -560,7 +560,7 @@ export default function ScrimAttendancePage() {
               <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-text-dim">
                 {unassignedMembers.map((m) => (
                   <span key={m.id} className="inline-flex items-center gap-1.5">
-                    {m.clan_tag} | {m.ign}
+                    {m.clan_tag}丨{m.ign}
                     <ClanTeamMark team={m.clan_team} />
                   </span>
                 ))}
@@ -772,7 +772,7 @@ function SlotGroup({
           return (
             <div key={m.id} className="flex flex-wrap items-center justify-between gap-2 border border-line bg-panel-2 px-2.5 py-2">
               <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text">
-                {m.clan_tag} | {m.ign}
+                {m.clan_tag}丨{m.ign}
                 <ClanTeamMark team={m.clan_team} />
               </span>
               <div className="flex items-center gap-1">
@@ -831,7 +831,7 @@ function SlotGroup({
                   }}
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[12.5px] text-text hover:bg-purple/10 hover:text-purple"
                 >
-                  <span>{m.clan_tag} | {m.ign}</span>
+                  <span>{m.clan_tag}丨{m.ign}</span>
                   <ClanTeamMark team={m.clan_team} />
                 </button>
               ))}

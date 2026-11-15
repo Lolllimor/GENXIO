@@ -170,14 +170,16 @@ export default function LeftPanel({ doc, tpl, selected, select, setTemplate, set
             </button>
           ))}
         </div>
-        <details className="mt-3">
-          <summary className="cursor-pointer text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Coming next ({UPCOMING.length})</summary>
-          <ul className="mt-2 space-y-1 pl-1 text-[11.5px] text-text-dim">
-            {UPCOMING.map((u) => (
-              <li key={u}>· {u}</li>
-            ))}
-          </ul>
-        </details>
+        {UPCOMING.length > 0 && (
+          <details className="mt-3">
+            <summary className="cursor-pointer text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Coming next ({UPCOMING.length})</summary>
+            <ul className="mt-2 space-y-1 pl-1 text-[11.5px] text-text-dim">
+              {UPCOMING.map((u) => (
+                <li key={u}>· {u}</li>
+              ))}
+            </ul>
+          </details>
+        )}
       </PanelSection>
 
       <PanelSection title="Content">

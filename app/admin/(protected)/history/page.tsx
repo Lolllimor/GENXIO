@@ -113,7 +113,7 @@ function HistoryInner() {
                 <option value="">Everyone</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.clan_tag} | {m.ign}
+                    {m.clan_tag}丨{m.ign}
                   </option>
                 ))}
               </select>

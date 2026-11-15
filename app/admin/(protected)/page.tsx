@@ -79,7 +79,7 @@ export default async function AdminDashboard() {
     const m = Array.isArray(row.members) ? row.members[0] : row.members;
     if (!m) continue;
     const key = `${m.clan_tag}|${m.ign}`;
-    const cur = killTotals.get(key) ?? { name: `${m.clan_tag} | ${m.ign}`, kills: 0 };
+    const cur = killTotals.get(key) ?? { name: `${m.clan_tag}丨${m.ign}`, kills: 0 };
     cur.kills += row.kills;
     killTotals.set(key, cur);
   }
@@ -213,7 +213,7 @@ export default async function AdminDashboard() {
                 >
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold text-text">
-                      {a.clan_tag} | {a.ign}
+                      {a.clan_tag}丨{a.ign}
                     </div>
                     <div className="text-[11px] text-text-dim">
                       {new Date(a.submitted_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}

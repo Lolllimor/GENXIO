@@ -22,7 +22,6 @@ function Layout() {
   const compact = h <= 1080;
   const tall = h > 1500;
   const players = c.val("players").split("\n").map((p) => p.trim()).filter(Boolean);
-  const winnerName = c.val("winner") || "Winner";
 
   const extras = [
     c.show("prize") && (
@@ -59,7 +58,7 @@ function Layout() {
         id="winnerLogo"
         w={compact ? 130 : tall ? 340 : 220}
         h={compact ? 130 : tall ? 340 : 220}
-        fallback={<Emblem letter={winnerName} />}
+        fallback={<Emblem name={c.val("winner")} tag={c.val("winnerTag")} />}
       />
       <div style={{ height: 16 }} />
       <T id="winner" size={compact ? 104 : tall ? 150 : 128} italic metal lh={0.95} tracking={1} style={{ maxWidth: 940 }} />
@@ -132,6 +131,7 @@ export const winnersAnnouncement: TemplateDef = {
     { id: "title", label: "Event name", kind: "text", default: "Inners Tournament" },
     { id: "winnerLogo", label: "Winner team logo", kind: "image", default: "" },
     { id: "winner", label: "Winning team", kind: "text", default: "Team Phantom" },
+    { id: "winnerTag", label: "Placeholder tag (auto: T¹)", kind: "text", default: "" },
     { id: "players", label: "Players (one per line)", kind: "textarea", default: "Player One\nPlayer Two\nPlayer Three\nPlayer Four" },
     { id: "secondLabel", label: "Label", kind: "text", default: "2nd place", section: "runners" },
     { id: "second", label: "Team", kind: "text", default: "Team Viper", section: "runners" },

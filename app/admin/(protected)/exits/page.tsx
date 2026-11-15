@@ -175,7 +175,7 @@ export default function ExitsPage() {
                       onMouseDown={() => pickMember(m)}
                       className="block w-full px-3 py-2 text-left text-[13px] text-text hover:bg-purple/10 hover:text-purple"
                     >
-                      {m.clan_tag} | {m.ign}
+                      {m.clan_tag}丨{m.ign}
                     </button>
                   ))}
                 </div>

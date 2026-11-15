@@ -7,11 +7,11 @@ import { Brackets, Emblem, Footer, Icon, Notch, Pic, Shell, Spacer, Stat, T, VDi
 import { BRAND, rgba } from "../theme";
 import type { TemplateDef } from "../types";
 
-function Team({ logo, name, size }: { logo: string; name: string; size: number }) {
+function Team({ logo, name, tag, size }: { logo: string; name: string; tag: string; size: number }) {
   const c = usePoster();
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18, width: 380 }}>
-      <Pic id={logo} w={size} h={size} fallback={<Emblem letter={c.val(name)} />} />
+      <Pic id={logo} w={size} h={size} fallback={<Emblem name={c.val(name)} tag={c.val(tag)} />} />
       <T id={name} size={52} weight={700} italic lh={1} />
     </div>
   );
@@ -45,9 +45,9 @@ function Layout() {
 
       <Spacer min={20} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-        <Team logo="teamALogo" name="teamA" size={crest} />
+        <Team logo="teamALogo" name="teamA" tag="teamATag" size={crest} />
         <T id="vs" size={compact ? 80 : 110} weight={700} italic color={c.accent} style={{ textShadow: `0 0 30px ${rgba(c.accent, 0.7)}` }} />
-        <Team logo="teamBLogo" name="teamB" size={crest} />
+        <Team logo="teamBLogo" name="teamB" tag="teamBTag" size={crest} />
       </div>
 
       <Spacer min={20} />
@@ -95,9 +95,11 @@ export const matchday: TemplateDef = {
     { id: "title", label: "Round / title", kind: "textarea", default: "Semi-Final" },
     { id: "teamA", label: "Team A", kind: "text", default: "Team Alpha" },
     { id: "teamALogo", label: "Team A logo", kind: "image", default: "" },
+    { id: "teamATag", label: "Team A tag (shown until logo is added)", kind: "text", default: "T¹" },
     { id: "vs", label: "Versus text", kind: "text", default: "VS" },
     { id: "teamB", label: "Team B", kind: "text", default: "Team Bravo" },
     { id: "teamBLogo", label: "Team B logo", kind: "image", default: "" },
+    { id: "teamBTag", label: "Team B tag (shown until logo is added)", kind: "text", default: "T²" },
     { id: "whenSmall", label: "Small text", kind: "text", default: "Today", section: "when" },
     { id: "whenBig", label: "Big text", kind: "text", default: "8PM", section: "when" },
     { id: "whereSmall", label: "Small text", kind: "text", default: "Map:", section: "where" },

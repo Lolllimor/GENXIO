@@ -91,7 +91,7 @@ export default function ApplyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const clanTagPreview = `G¹ | ${ign.trim() || "—"}`;
+  const clanTagPreview = `G¹丨${ign.trim() || "—"}`;
 
   function resetForm() {
     setIgn("");
@@ -161,7 +161,7 @@ export default function ApplyPage() {
       if (error) throw error;
 
       setMsg({
-        text: `Application submitted — we'll review it and get back to you, ${`G¹ | ${ign.trim()}`}.`,
+        text: `Application submitted — we'll review it and get back to you, ${`G¹丨${ign.trim()}`}.`,
         ok: true,
       });
       resetForm();

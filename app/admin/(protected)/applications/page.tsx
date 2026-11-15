@@ -167,7 +167,7 @@ export default function ApplicationsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <span className="text-sm font-semibold text-text">{app.clan_tag} | {app.ign}</span>
+                    <span className="text-sm font-semibold text-text">{app.clan_tag}丨{app.ign}</span>
                     <span
                       className={`border px-2 py-[2px] text-[9.5px] font-semibold uppercase tracking-wide ${STATUS_STYLE[app.roster_status]}`}
                     >

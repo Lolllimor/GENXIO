@@ -304,7 +304,7 @@ export default function RosterPage() {
             <p className="text-sm text-text-dim">
               Permanently delete{" "}
               <span className="font-semibold text-text">
-                {memberToDelete.clan_tag} | {memberToDelete.ign}
+                {memberToDelete.clan_tag}丨{memberToDelete.ign}
               </span>
               ? This can&apos;t be undone. Consider &ldquo;Log exit&rdquo; instead to keep their history.
             </p>
@@ -328,7 +328,7 @@ export default function RosterPage() {
       <Modal
         open={exitingMember !== null}
         onClose={() => setExitingMember(null)}
-        title={exitingMember ? `Log exit — ${exitingMember.clan_tag} | ${exitingMember.ign}` : "Log exit"}
+        title={exitingMember ? `Log exit — ${exitingMember.clan_tag}丨${exitingMember.ign}` : "Log exit"}
         accent="amber"
       >
         <form onSubmit={handleExitSubmit}>

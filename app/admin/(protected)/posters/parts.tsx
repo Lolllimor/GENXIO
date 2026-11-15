@@ -90,7 +90,7 @@ export function T({ id, size, weight = 700, italic, color = "#fff", tracking = 0
     lineHeight: lh,
     whiteSpace: "pre-line",
     textAlign: align,
-    ...(italic ? { transform: "skewX(-8deg)" } : {}),
+    ...(italic ? { transform: "skewX(-8deg)", padding: "0 0.12em" } : {}),
     ...(metal
       ? {
           background: METAL,
@@ -130,14 +130,24 @@ export function Pic({ id, w, h, fit = "contain", fallback, style }: { id: string
   );
 }
 
+/** First letter of the team name + "¹" (Team Alpha → T¹), unless an explicit tag is given. */
+export function teamTag(name: string, tag?: string) {
+  const t = tag?.trim();
+  if (t) return t;
+  const first = name.trim().charAt(0).toUpperCase();
+  return first ? `${first}¹` : "G¹";
+}
+
 /** Hexagon placeholder shown until a team logo is uploaded. */
-export function Emblem({ letter }: { letter: string }) {
+export function Emblem({ name = "", tag }: { name?: string; tag?: string }) {
   const c = usePoster();
+  const text = teamTag(name, tag);
+  const size = text.length > 2 ? 26 : text.length > 1 ? 36 : 44;
   return (
     <svg viewBox="0 0 100 100" width="100%" height="100%">
       <polygon points="50,4 92,27 92,73 50,96 8,73 8,27" fill={rgba(c.accent, 0.12)} stroke={c.accent} strokeWidth="2.5" />
-      <text x="50" y="64" textAnchor="middle" fontSize="42" fontWeight="700" fill="#fff" fontFamily="inherit" fontStyle="italic">
-        {letter.slice(0, 1).toUpperCase()}
+      <text x="50" y={50 + size * 0.34} textAnchor="middle" fontSize={size} fontWeight="700" fill="#fff" fontFamily="inherit" fontStyle="italic">
+        {text}
       </text>
     </svg>
   );
@@ -277,6 +287,27 @@ const ICON_PATHS: Record<string, ReactNode> = {
       <path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" />
     </>
   ),
+  check: <path d="M4 12.5l5 5L20 6.5" />,
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.3c2 .8 3.4 2.8 3.4 5.2" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </>
+  ),
+  bolt: <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />,
+  megaphone: (
+    <>
+      <path d="M3 10v4h4l8 5V5L7 10H3Z" />
+      <path d="M18.5 9a4 4 0 0 1 0 6" />
+    </>
+  ),
   star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3Z" />,
 };
 
@@ -310,6 +341,39 @@ export function Stat({ section, icon, small, big, numeric }: { section: string; 
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ---------- shared template helpers ---------- */
+
+export const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
+export const cols = (line: string) => line.split("|").map((x) => x.trim());
+
+export function useSize() {
+  const c = usePoster();
+  const { h } = FORMATS[c.doc.format];
+  return { h, compact: h <= 1080, tall: h > 1500 };
+}
+
+export function Masthead({ size, orgSize = 22 }: { size: number; orgSize?: number }) {
+  return (
+    <>
+      <Pic id="logo" w={size} h={size} />
+      <div style={{ height: 12 }} />
+      <T id="org" size={orgSize} weight={500} tracking={60} color={BRAND.silver} />
+    </>
+  );
+}
+
+export function Cta({ section, icon = "signal", label, value }: { section: string; icon?: string; label: string; value: string }) {
+  const c = usePoster();
+  if (!c.show(section)) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 18, padding: "12px 30px", border: `1px solid ${rgba(c.accent, 0.55)}`, background: rgba(c.accent, 0.12) }}>
+      <Icon name={icon} size={38} />
+      <T id={label} size={24} weight={600} tracking={30} color={BRAND.silver} />
+      <T id={value} size={30} weight={700} tracking={8} color="#fff" upper={false} />
     </div>
   );
 }
