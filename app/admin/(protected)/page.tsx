@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PositionChart, { type ChartPoint } from "./results/PositionChart";
@@ -11,7 +12,7 @@ const ROSTER_STATUS_STYLE: Record<string, string> = {
 export default async function AdminDashboard() {
   const supabase = await createClient();
 
-  const [members, scrimCountRes, scrims, news, achievements, applications, matchResults, attendance] = await Promise.all([
+  const [members, scrimCountRes, scrims, news, achievements, applications, matchResults, attendance, killRows] = await Promise.all([
     supabase.from("members").select("id, status"),
     supabase.from("scrims").select("id", { count: "exact", head: true }),
     supabase.from("scrims").select("*").order("scrim_date", { ascending: false }).limit(5),
@@ -20,6 +21,7 @@ export default async function AdminDashboard() {
     supabase.from("applications").select("*").order("submitted_at", { ascending: false }),
     supabase.from("match_results").select("id, position, notes, scrims(scrim_date, opponent)"),
     supabase.from("scrim_attendance").select("scrim_id, status"),
+    supabase.from("match_result_kills").select("kills, members(ign, clan_tag)"),
   ]);
 
   const activeMembers = members.data?.filter((m) => m.status === "ACTIVE").length ?? 0;
@@ -55,12 +57,50 @@ export default async function AdminDashboard() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-10);
 
+  const allAttendance = attendance.data ?? [];
+  const attendanceRate = allAttendance.length
+    ? Math.round(
+        (allAttendance.filter((a) => a.status === "present" || a.status === "late").length / allAttendance.length) * 100,
+      )
+    : null;
+
+  const allPositions = ((matchResults.data as RawResult[]) ?? []).map((r) => r.position);
+  const bestPlacement = allPositions.length ? Math.min(...allPositions) : null;
+  const avgPlacement = allPositions.length
+    ? (allPositions.reduce((a, b) => a + b, 0) / allPositions.length).toFixed(1)
+    : null;
+
+  type RawKill = {
+    kills: number;
+    members: { ign: string; clan_tag: string } | { ign: string; clan_tag: string }[] | null;
+  };
+  const killTotals = new Map<string, { name: string; kills: number }>();
+  for (const row of (killRows.data as RawKill[]) ?? []) {
+    const m = Array.isArray(row.members) ? row.members[0] : row.members;
+    if (!m) continue;
+    const key = `${m.clan_tag}|${m.ign}`;
+    const cur = killTotals.get(key) ?? { name: `${m.clan_tag} | ${m.ign}`, kills: 0 };
+    cur.kills += row.kills;
+    killTotals.set(key, cur);
+  }
+  const topFraggers = [...killTotals.values()].sort((a, b) => b.kills - a.kills).slice(0, 5);
+  const maxKills = topFraggers[0]?.kills ?? 1;
+
   return (
     <div>
-      <div className="eyebrow mb-2.5">Overview</div>
-      <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-text md:text-[30px]">
-        Dashboard
-      </h1>
+      <div className="relative mb-6 overflow-hidden border border-line [clip-path:polygon(0_0,calc(100%-16px)_0,100%_16px,100%_100%,16px_100%,0_calc(100%-16px))]">
+        <Image src="/hero-bg.webp" alt="" fill sizes="100vw" className="object-cover object-[80%_30%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-bg/95 via-bg/70 to-bg/10" />
+        <div className="relative px-6 py-7 md:px-8 md:py-9">
+          <div className="eyebrow mb-2.5">Overview</div>
+          <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-text md:text-[34px]">
+            Command <span className="text-purple [text-shadow:0_0_24px_rgba(139,92,246,0.6)]">Dashboard</span>
+          </h1>
+          <p className="mt-2 max-w-md text-[12.5px] text-text-dim">
+            Roster, scrims and performance at a glance.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="admin-stat">
@@ -90,14 +130,66 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="eyebrow">Performance trend</div>
-          <Link href="/admin/results" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
-            View all →
-          </Link>
+      <div className="mt-8 grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="eyebrow">Performance trend</div>
+            <Link href="/admin/results" className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
+              View all →
+            </Link>
+          </div>
+          <PositionChart points={chartPoints} />
         </div>
-        <PositionChart points={chartPoints} />
+
+        <div>
+          <div className="mb-3 eyebrow">Form check</div>
+          <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+            <div className="admin-stat">
+              <div className="admin-stat-index">Best</div>
+              <div className="font-display text-[28px] font-bold leading-none text-green">
+                {bestPlacement !== null ? `#${bestPlacement}` : "—"}
+              </div>
+              <div className="mt-2 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Placement</div>
+            </div>
+            <div className="admin-stat">
+              <div className="admin-stat-index">Average</div>
+              <div className="font-display text-[28px] font-bold leading-none text-text">
+                {avgPlacement !== null ? `#${avgPlacement}` : "—"}
+              </div>
+              <div className="mt-2 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Placement</div>
+            </div>
+            <div className="admin-stat">
+              <div className="admin-stat-index">Turnout</div>
+              <div className="font-display text-[28px] font-bold leading-none text-amber">
+                {attendanceRate !== null ? `${attendanceRate}%` : "—"}
+              </div>
+              <div className="mt-2 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Attendance rate</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <div className="mb-3 eyebrow">Top fraggers</div>
+        {topFraggers.length === 0 ? (
+          <div className="admin-panel text-sm text-text-dim">No kills logged yet — enter kills on a scrim&apos;s match results.</div>
+        ) : (
+          <div className="admin-panel flex flex-col gap-3">
+            {topFraggers.map((f, i) => (
+              <div key={f.name} className="flex items-center gap-4">
+                <span className="w-5 font-display text-[13px] font-bold text-purple">{i + 1}</span>
+                <span className="w-44 shrink-0 truncate text-[13px] font-semibold text-text">{f.name}</span>
+                <div className="h-2 flex-1 bg-line/60">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple to-amber shadow-[0_0_10px_var(--purple)]"
+                    style={{ width: `${(f.kills / maxKills) * 100}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right font-display text-[13px] font-bold text-text">{f.kills}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-8 grid gap-5 lg:grid-cols-2">

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Scrim } from "@/lib/supabase/types";
 import Modal from "../Modal";
 import RowMenu from "../RowMenu";
+import SearchBox from "../SearchBox";
 import { toastSuccess, toastError } from "../toast";
 
 export default function ScrimsPage() {
@@ -19,6 +20,7 @@ export default function ScrimsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [query, setQuery] = useState("");
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [opponent, setOpponent] = useState("");
@@ -35,6 +37,14 @@ export default function ScrimsPage() {
   const [scrimToDelete, setScrimToDelete] = useState<Scrim | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
+
+  const visibleScrims = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return scrims;
+    return scrims.filter((s) =>
+      `${s.opponent ?? "internal scrim"} ${s.scrim_date} ${s.notes ?? ""}`.toLowerCase().includes(q),
+    );
+  }, [scrims, query]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -338,6 +348,10 @@ export default function ScrimsPage() {
       ) : scrims.length === 0 ? (
         <p className="text-sm text-text-dim">No scrims logged yet.</p>
       ) : (
+        <>
+        <div className="mb-4 flex justify-end">
+          <SearchBox value={query} onChange={setQuery} placeholder="Search opponent, date, notes…" />
+        </div>
         <div className="admin-table-wrap">
           <table className="min-w-[640px]">
             <thead>
@@ -351,7 +365,7 @@ export default function ScrimsPage() {
               </tr>
             </thead>
             <tbody>
-              {scrims.map((s) => (
+              {visibleScrims.map((s) => (
                 <tr
                   key={s.id}
                   className="cursor-pointer"
@@ -392,6 +406,10 @@ export default function ScrimsPage() {
             </tbody>
           </table>
         </div>
+        {visibleScrims.length === 0 && (
+          <p className="mt-4 text-sm text-text-dim">No scrims match &ldquo;{query}&rdquo;.</p>
+        )}
+        </>
       )}
     </div>
   );

@@ -444,3 +444,18 @@ create policy "anyone can read published achievements"
 -- 1. Supabase Dashboard -> Authentication -> Users -> Add user (email + password).
 -- 2. Copy that user's UID, then run:
 --    insert into public.admins (id, email) values ('<uid>', '<email>');
+
+-- ---------- Poster Studio: hot drops per map ----------
+create table if not exists public.poster_map_drops (
+  map_name text primary key,
+  drops text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.poster_map_drops enable row level security;
+
+drop policy if exists "admins manage poster map drops" on public.poster_map_drops;
+create policy "admins manage poster map drops"
+  on public.poster_map_drops for all
+  using (public.is_admin())
+  with check (public.is_admin());

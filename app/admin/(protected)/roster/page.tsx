@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
+import SearchBox from "../SearchBox";
+import RowMenu from "../RowMenu";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { MP_OPERATORS, BR_CLASSES, ACTIVITY_LEVELS, CLAN_TEAMS, clanTeamMeta } from "@/lib/gameData";
@@ -59,6 +61,9 @@ export default function RosterPage() {
   const [exitForm, setExitForm] = useState(EMPTY_EXIT_FORM);
   const [exitSaving, setExitSaving] = useState(false);
   const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
+  const [query, setQuery] = useState("");
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [deletingMember, setDeletingMember] = useState(false);
   const [savingTeamId, setSavingTeamId] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
@@ -67,6 +72,8 @@ export default function RosterPage() {
     const rank = (m: Member) => TEAM_RANK[m.clan_team ?? ""] ?? 99;
     return [...members]
       .filter((m) => {
+        const q = query.trim().toLowerCase();
+        if (q && !`${m.clan_tag} ${m.ign} ${m.whatsapp_name ?? ""} ${m.uid ?? ""} ${m.professional_name ?? ""}`.toLowerCase().includes(q)) return false;
         if (teamFilter === "all") return true;
         if (teamFilter === "unassigned") return !m.clan_team;
         return m.clan_team === teamFilter;
@@ -76,7 +83,7 @@ export default function RosterPage() {
         if (byTeam !== 0) return byTeam;
         return a.ign.localeCompare(b.ign);
       });
-  }, [members, teamFilter]);
+  }, [members, teamFilter, query]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -187,16 +194,19 @@ export default function RosterPage() {
     toastSuccess(`${label} spot saved.`);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Permanently delete this member? Consider “Log exit” instead to keep history.")) return;
-    const { error } = await supabase.from("members").delete().eq("id", id);
+  async function confirmDeleteMember() {
+    if (!memberToDelete) return;
+    setDeletingMember(true);
+    const { error } = await supabase.from("members").delete().eq("id", memberToDelete.id);
+    setDeletingMember(false);
     if (error) {
       setError(error.message);
       toastError(error.message);
-    } else {
-      toastSuccess("Member deleted.");
-      load();
+      return;
     }
+    toastSuccess("Member deleted.");
+    setMemberToDelete(null);
+    load();
   }
 
   function startExit(m: Member) {
@@ -287,6 +297,33 @@ export default function RosterPage() {
           {error}
         </div>
       )}
+
+      <Modal open={memberToDelete !== null} onClose={() => setMemberToDelete(null)} title="Delete member?" accent="amber">
+        {memberToDelete && (
+          <div>
+            <p className="text-sm text-text-dim">
+              Permanently delete{" "}
+              <span className="font-semibold text-text">
+                {memberToDelete.clan_tag} | {memberToDelete.ign}
+              </span>
+              ? This can&apos;t be undone. Consider &ldquo;Log exit&rdquo; instead to keep their history.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={confirmDeleteMember}
+                disabled={deletingMember}
+                className="btn btn-primary flex-1 !bg-red !shadow-none"
+              >
+                {deletingMember ? "Deleting…" : "Delete"}
+              </button>
+              <button type="button" onClick={() => setMemberToDelete(null)} className="btn btn-outline flex-1">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={exitingMember !== null}
@@ -500,7 +537,8 @@ export default function RosterPage() {
         <p className="text-sm text-text-dim">No members yet — add the first one above.</p>
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap gap-1.5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5">
             {([
               { id: "all" as const, label: "All", count: members.length },
               ...CLAN_TEAMS.map((t) => ({
@@ -523,9 +561,11 @@ export default function RosterPage() {
               </button>
             ))}
           </div>
+          <SearchBox value={query} onChange={setQuery} placeholder="Search IGN, tag, UID…" />
+          </div>
 
           {visibleMembers.length === 0 && (
-            <p className="mb-4 text-sm text-text-dim">No members on this team yet.</p>
+            <p className="mb-4 text-sm text-text-dim">No members match this filter.</p>
           )}
 
           <div className="admin-table-wrap">
@@ -544,8 +584,16 @@ export default function RosterPage() {
               <tbody>
                 {visibleMembers.map((m) => (
                   <tr key={m.id}>
-                    <td className="font-semibold text-text">
-                      {m.clan_tag} | {m.ign}
+                    <td>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-line bg-purple/15 font-display text-[12px] font-bold text-purple [clip-path:polygon(6px_0,100%_0,100%_calc(100%-6px),calc(100%-6px)_100%,0_100%,0_6px)]">
+                          {m.ign.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-text">{m.ign}</div>
+                          <div className="text-[11px] text-text-dim">{m.clan_tag}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <select
@@ -564,37 +612,23 @@ export default function RosterPage() {
                     </td>
                     <td>
                       <span
-                        className={`text-[11px] font-semibold uppercase tracking-wide ${
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${
                           m.status === "ACTIVE" ? "text-green" : "text-text-dim"
                         }`}
                       >
+                        <span className={`h-1.5 w-1.5 rounded-full ${m.status === "ACTIVE" ? "bg-green shadow-[0_0_8px_var(--green)]" : "bg-text-dim/50"}`} />
                         {m.status}
                       </span>
                     </td>
                     <td className="text-text-dim">{m.mode ?? "—"}</td>
                     <td className="text-text-dim">{m.mp_role ?? "—"}</td>
                     <td className="text-text-dim">{m.whatsapp_number ?? "—"}</td>
-                    <td>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => startEdit(m)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-purple hover:brightness-125"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => startExit(m)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-amber hover:brightness-125"
-                        >
-                          Log exit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(m.id)}
-                          className="text-[11px] font-semibold uppercase tracking-wide text-red hover:brightness-125"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                    <td className="text-right">
+                      <RowMenu
+                        onEdit={() => startEdit(m)}
+                        extra={{ label: "Log exit", onClick: () => startExit(m), color: "var(--amber)" }}
+                        onDelete={() => setMemberToDelete(m)}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -15,10 +15,12 @@ export default function RowMenu({
   onView,
   onEdit,
   onDelete,
+  extra,
 }: {
   onView?: () => void;
   onEdit?: () => void;
   onDelete: () => void;
+  extra?: { label: string; onClick: () => void; color?: string };
 }) {
   return (
     <Menu shadow="md" width={140} position="bottom-end" withinPortal radius={0}>
@@ -52,6 +54,14 @@ export default function RowMenu({
         {onEdit && (
           <Menu.Item onClick={onEdit} styles={{ item: { ...itemStyle, color: "var(--text)" } }}>
             Edit
+          </Menu.Item>
+        )}
+        {extra && (
+          <Menu.Item
+            onClick={extra.onClick}
+            styles={{ item: { ...itemStyle, color: extra.color ?? "var(--text)" } }}
+          >
+            {extra.label}
           </Menu.Item>
         )}
         <Menu.Item onClick={onDelete} styles={{ item: { ...itemStyle, color: "var(--red)" } }}>
