@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import Editor from "./Editor";
 
 export default function PostersPage() {
-  return <Editor />;
+  return (
+    <Suspense>
+      <Editor />
+    </Suspense>
+  );
 }

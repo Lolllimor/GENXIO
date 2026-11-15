@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CLAN_TEAMS, CLAN_TEAM_STYLE, clanTeamMeta } from "@/lib/gameData";
@@ -69,7 +70,9 @@ function makeTeams(players: Player[], size: number, even: boolean, mix: boolean)
 }
 
 export default function RandomizerPage() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const [starting, setStarting] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -148,6 +151,45 @@ export default function RandomizerPage() {
   }
 
   const noun = n === 2 ? "Duo" : "Squad";
+
+  /** Turn the rolled teams into a tournament, ready for kills to be entered. */
+  async function startTournament() {
+    if (!teams || rolling || starting) return;
+    setStarting(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const today = new Date();
+    const created = await supabase
+      .from("tournaments")
+      .insert({
+        name: `Inners ${today.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+        tournament_date: today.toISOString().slice(0, 10),
+        team_size: n,
+        created_by: user?.id ?? null,
+      })
+      .select("id")
+      .single();
+    if (created.error) {
+      setStarting(false);
+      toastError(/tournaments/i.test(created.error.message) ? "Run supabase/add_tournaments.sql in the Supabase SQL editor first." : created.error.message);
+      return;
+    }
+    const tid = created.data.id as string;
+    const teamRows = teams.map((t, i) => ({ id: crypto.randomUUID(), tournament_id: tid, name: `Team ${i + 1}`, placement: i + 1 }));
+    const teamRes = await supabase.from("tournament_teams").insert(teamRows);
+    const playerRes = teamRes.error
+      ? null
+      : await supabase.from("tournament_players").insert(teams.flatMap((t, i) => t.map((p) => ({ team_id: teamRows[i].id, member_id: p.id, ign: p.ign, kills: 0 }))));
+    const failure = teamRes.error ?? playerRes?.error;
+    if (failure) {
+      setStarting(false);
+      toastError(failure.message);
+      return;
+    }
+    toastSuccess("Tournament created — enter the kills.");
+    router.push(`/admin/tournaments/${tid}`);
+  }
 
   async function copy() {
     if (!teams) return;
@@ -258,9 +300,14 @@ export default function RandomizerPage() {
             <>
               <div className="mb-3 flex items-center justify-between">
                 <div className="eyebrow">{teams.length} {noun.toLowerCase()}{teams.length === 1 ? "" : "s"}</div>
-                <button type="button" onClick={copy} disabled={rolling} className="btn btn-outline !px-3 !py-1.5 !text-[10px]">
-                  Copy for WhatsApp
-                </button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={copy} disabled={rolling} className="btn btn-outline !px-3 !py-1.5 !text-[10px]">
+                    Copy for WhatsApp
+                  </button>
+                  <button type="button" onClick={startTournament} disabled={rolling || starting} className="btn btn-primary !px-3 !py-1.5 !text-[10px]">
+                    {starting ? "Creating…" : "Start tournament"}
+                  </button>
+                </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {teams.map((t, i) => (

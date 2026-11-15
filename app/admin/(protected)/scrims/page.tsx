@@ -8,6 +8,7 @@ import type { Scrim } from "@/lib/supabase/types";
 import Modal from "../Modal";
 import RowMenu from "../RowMenu";
 import SearchBox from "../SearchBox";
+import { BulkBar, BulkButton, BulkConfirm, Check, useSelection } from "../bulk";
 import { toastSuccess, toastError } from "../toast";
 
 export default function ScrimsPage() {
@@ -45,6 +46,27 @@ export default function ScrimsPage() {
       `${s.opponent ?? "internal scrim"} ${s.scrim_date} ${s.notes ?? ""}`.toLowerCase().includes(q),
     );
   }, [scrims, query]);
+
+  const sel = useSelection(visibleScrims.map((s) => s.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  async function bulkDelete() {
+    const ids = sel.selected;
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("scrims").delete().in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    toastSuccess(`${ids.length} scrim${ids.length === 1 ? "" : "s"} deleted.`);
+    setBulkDeleteOpen(false);
+    sel.clear();
+    load();
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -356,6 +378,9 @@ export default function ScrimsPage() {
           <table className="min-w-[640px]">
             <thead>
               <tr>
+                <th className="w-10">
+                  <Check checked={sel.allSelected} indeterminate={sel.someSelected} onChange={sel.toggleAll} label="Select all scrims" />
+                </th>
                 <th>Date</th>
                 <th>Opponent</th>
                 <th>Attended</th>
@@ -368,9 +393,13 @@ export default function ScrimsPage() {
               {visibleScrims.map((s) => (
                 <tr
                   key={s.id}
+                  data-selected={sel.has(s.id)}
                   className="cursor-pointer"
                   onClick={() => router.push(`/admin/scrims/${s.id}`)}
                 >
+                  <td className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <Check checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} label="Select scrim" />
+                  </td>
                   <td className="font-display font-bold tracking-wide text-purple">
                     {new Date(s.scrim_date + "T00:00:00").toLocaleDateString(undefined, {
                       year: "numeric",
@@ -411,6 +440,22 @@ export default function ScrimsPage() {
         )}
         </>
       )}
+
+      <BulkBar count={sel.count} noun="scrim" onClear={sel.clear}>
+        <BulkButton tone="danger" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+          Delete
+        </BulkButton>
+      </BulkBar>
+
+      <BulkConfirm
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        title="Delete scrims?"
+        message={<>Delete <b className="text-text">{sel.count}</b> selected scrim{sel.count === 1 ? "" : "s"}? Their attendance, teams, and results will be deleted too. This can&apos;t be undone.</>}
+        confirmLabel={`Delete ${sel.count}`}
+        busy={bulkBusy}
+        onConfirm={bulkDelete}
+      />
     </div>
   );
 }

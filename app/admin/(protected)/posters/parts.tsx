@@ -155,7 +155,7 @@ export function Emblem({ name = "", tag }: { name?: string; tag?: string }) {
 
 /* ---------- canvas shell: backdrop, shards, padding ---------- */
 
-export function Shell({ children }: { children: ReactNode }) {
+export function Shell({ children, shards = true }: { children: ReactNode; shards?: boolean }) {
   const c = usePoster();
   const { w, h } = FORMATS[c.doc.format];
   const bg = c.doc.bg;
@@ -195,6 +195,8 @@ export function Shell({ children }: { children: ReactNode }) {
       <div style={{ position: "absolute", inset: 0, background: `rgba(5,5,7,${bg.dim})` }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(5,5,7,0.6) 0%,rgba(5,5,7,0.08) 28%,rgba(5,5,7,0.0) 52%,rgba(5,5,7,0.88) 100%)" }} />
 
+      {shards && (
+        <>
       {/* soft central darkening so text stays readable on any photo */}
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 75% 45% at 50% 38%, rgba(5,5,7,0.5), transparent 70%)" }} />
 
@@ -203,6 +205,8 @@ export function Shell({ children }: { children: ReactNode }) {
       <div style={{ position: "absolute", top: 0, left: 0, width: 190, height: 190, background: "rgba(5,5,8,0.92)", clipPath: "polygon(0 0,100% 0,0 100%)" }} />
       <div style={{ position: "absolute", bottom: 0, right: 0, width: 260, height: 260, background: `linear-gradient(315deg,${accent},${deep})`, clipPath: "polygon(100% 0,100% 100%,0 100%)", opacity: 0.92 }} />
       <div style={{ position: "absolute", bottom: 0, right: 0, width: 156, height: 156, background: "rgba(5,5,8,0.9)", clipPath: "polygon(100% 0,100% 100%,0 100%)" }} />
+        </>
+      )}
 
       <div style={{ position: "absolute", inset: 0, padding: "54px 64px 50px", display: "flex", flexDirection: "column", alignItems: "center" }}>
         {children}

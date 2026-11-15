@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAN_TEAMS } from "@/lib/gameData";
 import type { Application, ClanTeam, RosterStatus } from "@/lib/supabase/types";
 import { toastSuccess, toastError } from "../toast";
+import { BulkBar, BulkButton, BulkConfirm, Check, useSelection } from "../bulk";
 
 const STATUS_STYLE: Record<RosterStatus, string> = {
   pending: "border-amber bg-amber/10 text-amber",
@@ -37,14 +38,8 @@ export default function ApplicationsPage() {
     queueMicrotask(load);
   }, [load]);
 
-  async function handleAccept(app: Application) {
-    setBusyId(app.id);
-    setError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+  /** Creates the member and marks the application accepted. Returns an error message, or null on success. */
+  async function acceptOne(app: Application, team: ClanTeam | "", userId: string | null): Promise<string | null> {
     const { data: member, error: memberError } = await supabase
       .from("members")
       .insert({
@@ -55,7 +50,7 @@ export default function ApplicationsPage() {
         whatsapp_number: app.whatsapp_number,
         mode: app.mode,
         mp_role: app.mp_role,
-        clan_team: placeOn[app.id] || null,
+        clan_team: team || null,
         device: app.device,
         activity: app.activity,
         comps_experience: app.comps_experience,
@@ -68,29 +63,47 @@ export default function ApplicationsPage() {
       .single();
 
     if (memberError) {
-      const message = /clan_team/i.test(memberError.message)
+      return /clan_team/i.test(memberError.message)
         ? "Run supabase/add_clan_teams.sql in the Supabase SQL editor, then try again."
         : memberError.message;
-      setError(message);
-      toastError(message);
-      setBusyId(null);
-      return;
     }
 
     const { error: appError } = await supabase
       .from("applications")
       .update({
         roster_status: "accepted",
-        reviewed_by: user?.id ?? null,
+        reviewed_by: userId,
         reviewed_at: new Date().toISOString(),
         member_id: member.id,
       })
       .eq("id", app.id);
 
+    return appError ? appError.message : null;
+  }
+
+  async function rejectOne(app: Application, userId: string | null): Promise<string | null> {
+    const { error } = await supabase
+      .from("applications")
+      .update({
+        roster_status: "rejected",
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", app.id);
+    return error ? error.message : null;
+  }
+
+  async function handleAccept(app: Application) {
+    setBusyId(app.id);
+    setError(null);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const message = await acceptOne(app, placeOn[app.id] ?? "", user?.id ?? null);
     setBusyId(null);
-    if (appError) {
-      setError(appError.message);
-      toastError(appError.message);
+    if (message) {
+      setError(message);
+      toastError(message);
     } else {
       toastSuccess("Application accepted.");
       load();
@@ -100,32 +113,58 @@ export default function ApplicationsPage() {
   async function handleReject(app: Application) {
     setBusyId(app.id);
     setError(null);
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
-    const { error } = await supabase
-      .from("applications")
-      .update({
-        roster_status: "rejected",
-        reviewed_by: user?.id ?? null,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", app.id);
-
+    const message = await rejectOne(app, user?.id ?? null);
     setBusyId(null);
-    if (error) {
-      setError(error.message);
-      toastError(error.message);
+    if (message) {
+      setError(message);
+      toastError(message);
     } else {
       toastSuccess("Application rejected.");
       load();
     }
   }
 
+  async function runBulk(kind: "accept" | "reject") {
+    const targets = apps.filter((a) => sel.selected.includes(a.id) && a.roster_status === "pending");
+    if (targets.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let ok = 0;
+    let firstError: string | null = null;
+    for (const app of targets) {
+      const message = kind === "accept" ? await acceptOne(app, placeOn[app.id] || bulkTeam, user?.id ?? null) : await rejectOne(app, user?.id ?? null);
+      if (message) firstError ??= message;
+      else ok++;
+    }
+    setBulkBusy(false);
+    setBulkRejectOpen(false);
+
+    const verb = kind === "accept" ? "accepted" : "rejected";
+    if (firstError) {
+      setError(firstError);
+      toastError(`${ok} ${verb}, ${targets.length - ok} failed: ${firstError}`);
+    } else {
+      toastSuccess(`${ok} application${ok === 1 ? "" : "s"} ${verb}.`);
+    }
+    sel.clear();
+    load();
+  }
+
   const visible = filter === "all" ? apps : apps.filter((a) => a.roster_status === filter);
   const pendingCount = apps.filter((a) => a.roster_status === "pending").length;
+
+  const pendingVisibleCount = visible.filter((a) => a.roster_status === "pending").length;
+  const sel = useSelection(visible.filter((a) => a.roster_status === "pending").map((a) => a.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkTeam, setBulkTeam] = useState<ClanTeam | "">("");
 
   return (
     <div>
@@ -162,10 +201,22 @@ export default function ApplicationsPage() {
         <p className="text-sm text-text-dim">Nothing here.</p>
       ) : (
         <div className="flex flex-col gap-3">
+          {pendingVisibleCount > 0 && (
+            <label className="flex w-fit cursor-pointer items-center gap-2.5 !normal-case">
+              <Check checked={sel.allSelected} indeterminate={sel.someSelected} onChange={sel.toggleAll} label="Select all pending applications" />
+              <span className="text-[11px] uppercase tracking-[0.1em] text-text-dim">Select all pending ({pendingVisibleCount})</span>
+            </label>
+          )}
           {visible.map((app) => (
-            <div key={app.id} className="admin-panel">
+            <div key={app.id} className="admin-panel" style={sel.has(app.id) ? { borderColor: "var(--purple)", boxShadow: "0 0 28px -10px rgb(var(--grid-rgb) / 0.7)" } : undefined}>
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+                <div className="flex items-start gap-3.5">
+                  {app.roster_status === "pending" && (
+                    <div className="pt-0.5">
+                      <Check checked={sel.has(app.id)} onChange={() => sel.toggle(app.id)} label={`Select ${app.ign}`} />
+                    </div>
+                  )}
+                  <div>
                   <div className="flex items-center gap-2.5">
                     <span className="text-sm font-semibold text-text">{app.clan_tag}丨{app.ign}</span>
                     <span
@@ -181,6 +232,7 @@ export default function ApplicationsPage() {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
+                  </div>
                   </div>
                 </div>
                 {app.roster_status === "pending" && (
@@ -231,6 +283,38 @@ export default function ApplicationsPage() {
           ))}
         </div>
       )}
+
+      <BulkBar count={sel.count} noun="application" onClear={sel.clear}>
+        <select
+          value={bulkTeam}
+          onChange={(e) => setBulkTeam(e.target.value as ClanTeam | "")}
+          className="!min-h-0 !w-[140px] !py-1.5 !pr-7 !text-[11px]"
+          aria-label="Team for accepted members"
+        >
+          <option value="">Unassigned</option>
+          {CLAN_TEAMS.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <BulkButton tone="good" onClick={() => runBulk("accept")} disabled={bulkBusy}>
+          {bulkBusy ? "Working…" : "Accept"}
+        </BulkButton>
+        <BulkButton tone="danger" onClick={() => setBulkRejectOpen(true)} disabled={bulkBusy}>
+          Reject
+        </BulkButton>
+      </BulkBar>
+
+      <BulkConfirm
+        open={bulkRejectOpen}
+        onClose={() => setBulkRejectOpen(false)}
+        title="Reject applications?"
+        message={<>Reject <b className="text-text">{sel.count}</b> selected application{sel.count === 1 ? "" : "s"}?</>}
+        confirmLabel={`Reject ${sel.count}`}
+        busy={bulkBusy}
+        onConfirm={() => runBulk("reject")}
+      />
     </div>
   );
 }

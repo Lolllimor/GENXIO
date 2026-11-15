@@ -1,7 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { fetchInnersBoard } from "@/lib/tournaments";
+import CountUp from "./CountUp";
 import PositionChart, { type ChartPoint } from "./results/PositionChart";
+
+function StatIcon({ d }: { d: string }) {
+  return (
+    <span className="admin-stat-icon">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d={d} />
+      </svg>
+    </span>
+  );
+}
+
+const TILE_ICONS = {
+  inbox: "M4 4h16v10H4V4Zm0 10 4 6h8l4-6",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M17 11a3 3 0 1 0 0-6M21 20c0-2.8-2-5.1-4.7-5.8",
+  shield: "M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4Z",
+  pen: "M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4",
+};
 
 const ROSTER_STATUS_STYLE: Record<string, string> = {
   pending: "border-amber bg-amber/10 text-amber",
@@ -21,7 +40,7 @@ export default async function AdminDashboard() {
     supabase.from("applications").select("*").order("submitted_at", { ascending: false }),
     supabase.from("match_results").select("id, position, notes, scrims(scrim_date, opponent)"),
     supabase.from("scrim_attendance").select("scrim_id, status"),
-    supabase.from("match_result_kills").select("kills, members(ign, clan_tag)"),
+    fetchInnersBoard(supabase),
   ]);
 
   const activeMembers = members.data?.filter((m) => m.status === "ACTIVE").length ?? 0;
@@ -70,20 +89,7 @@ export default async function AdminDashboard() {
     ? (allPositions.reduce((a, b) => a + b, 0) / allPositions.length).toFixed(1)
     : null;
 
-  type RawKill = {
-    kills: number;
-    members: { ign: string; clan_tag: string } | { ign: string; clan_tag: string }[] | null;
-  };
-  const killTotals = new Map<string, { name: string; kills: number }>();
-  for (const row of (killRows.data as RawKill[]) ?? []) {
-    const m = Array.isArray(row.members) ? row.members[0] : row.members;
-    if (!m) continue;
-    const key = `${m.clan_tag}|${m.ign}`;
-    const cur = killTotals.get(key) ?? { name: `${m.clan_tag}丨${m.ign}`, kills: 0 };
-    cur.kills += row.kills;
-    killTotals.set(key, cur);
-  }
-  const topFraggers = [...killTotals.values()].sort((a, b) => b.kills - a.kills).slice(0, 5);
+  const topFraggers = (killRows.board ?? []).slice(0, 5).map((p) => ({ name: p.clan_tag ? `${p.clan_tag}丨${p.ign}` : p.ign, kills: p.kills }));
   const maxKills = topFraggers[0]?.kills ?? 1;
 
   return (
@@ -102,31 +108,37 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="admin-stat">
+      <div className="admin-stagger mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="admin-stat" data-tone="amber">
+          <StatIcon d={TILE_ICONS.inbox} />
           <div className="admin-stat-index">01 — Intake</div>
-          <div className="font-display text-[32px] font-bold leading-none text-amber [text-shadow:0_0_18px_rgba(255,154,31,0.35)]">
-            {pendingApplications}
-          </div>
+          <div className="admin-stat-value"><CountUp value={pendingApplications} /></div>
           <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Applications pending</div>
+          <div className="admin-meter"><span style={{ width: allApplications.length ? `${(pendingApplications / allApplications.length) * 100}%` : "0%" }} /></div>
         </div>
-        <div className="admin-stat">
+        <div className="admin-stat" data-tone="purple">
+          <StatIcon d={TILE_ICONS.users} />
           <div className="admin-stat-index">02 — Roster</div>
-          <div className="font-display text-[32px] font-bold leading-none text-text">
-            {activeMembers}
+          <div className="admin-stat-value">
+            <CountUp value={activeMembers} />
             <span className="ml-1.5 text-lg text-text-dim">/{totalMembers}</span>
           </div>
           <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Active members</div>
+          <div className="admin-meter"><span style={{ width: totalMembers ? `${(activeMembers / totalMembers) * 100}%` : "0%" }} /></div>
         </div>
-        <div className="admin-stat">
+        <div className="admin-stat" data-tone="cyan">
+          <StatIcon d={TILE_ICONS.shield} />
           <div className="admin-stat-index">03 — Comp</div>
-          <div className="font-display text-[32px] font-bold leading-none text-text">{scrimCount}</div>
+          <div className="admin-stat-value"><CountUp value={scrimCount} /></div>
           <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Scrims logged</div>
+          <div className="admin-meter"><span style={{ width: scrimCount ? "100%" : "0%" }} /></div>
         </div>
-        <div className="admin-stat">
+        <div className="admin-stat" data-tone="green">
+          <StatIcon d={TILE_ICONS.pen} />
           <div className="admin-stat-index">04 — Publish</div>
-          <div className="font-display text-[32px] font-bold leading-none text-text">{draftNews + draftAchievements}</div>
+          <div className="admin-stat-value"><CountUp value={draftNews + draftAchievements} /></div>
           <div className="mt-2.5 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Unpublished drafts</div>
+          <div className="admin-meter"><span style={{ width: draftNews + draftAchievements ? "100%" : "0%" }} /></div>
         </div>
       </div>
 
@@ -142,23 +154,23 @@ export default async function AdminDashboard() {
         </div>
 
         <div>
-          <div className="mb-3 eyebrow">Form check</div>
+          <div className="admin-section-title"><div className="eyebrow">Form check</div></div>
           <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
-            <div className="admin-stat">
+            <div className="admin-stat" data-tone="green">
               <div className="admin-stat-index">Best</div>
               <div className="font-display text-[28px] font-bold leading-none text-green">
                 {bestPlacement !== null ? `#${bestPlacement}` : "—"}
               </div>
               <div className="mt-2 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Placement</div>
             </div>
-            <div className="admin-stat">
+            <div className="admin-stat" data-tone="cyan">
               <div className="admin-stat-index">Average</div>
               <div className="font-display text-[28px] font-bold leading-none text-text">
                 {avgPlacement !== null ? `#${avgPlacement}` : "—"}
               </div>
               <div className="mt-2 text-[10.5px] uppercase tracking-[0.12em] text-text-dim">Placement</div>
             </div>
-            <div className="admin-stat">
+            <div className="admin-stat" data-tone="amber">
               <div className="admin-stat-index">Turnout</div>
               <div className="font-display text-[28px] font-bold leading-none text-amber">
                 {attendanceRate !== null ? `${attendanceRate}%` : "—"}
@@ -170,9 +182,9 @@ export default async function AdminDashboard() {
       </div>
 
       <div className="mt-8">
-        <div className="mb-3 eyebrow">Top fraggers</div>
+        <div className="admin-section-title"><div className="eyebrow">Top fraggers · Inners</div></div>
         {topFraggers.length === 0 ? (
-          <div className="admin-panel text-sm text-text-dim">No kills logged yet — enter kills on a scrim&apos;s match results.</div>
+          <div className="admin-panel text-sm text-text-dim">No Inners kills logged yet — record one under Tournaments.</div>
         ) : (
           <div className="admin-panel flex flex-col gap-3">
             {topFraggers.map((f, i) => (

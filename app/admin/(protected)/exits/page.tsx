@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exit, Member } from "@/lib/supabase/types";
 import Modal from "../Modal";
+import { BulkBar, BulkButton, BulkConfirm, Check, useSelection } from "../bulk";
 import { toastSuccess, toastError } from "../toast";
 
 const EMPTY_FORM = {
@@ -29,6 +30,10 @@ export default function ExitsPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
+
+  const sel = useSelection(exits.map((x) => x.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,6 +116,23 @@ export default function ExitsPage() {
     setSaving(false);
     toastSuccess("Exit logged.");
     resetForm();
+    load();
+  }
+
+  async function bulkDelete() {
+    const ids = sel.selected;
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("exits").delete().in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    toastSuccess(`${ids.length} exit record${ids.length === 1 ? "" : "s"} deleted.`);
+    setBulkDeleteOpen(false);
+    sel.clear();
     load();
   }
 
@@ -239,6 +261,9 @@ export default function ExitsPage() {
           <table className="min-w-[720px]">
             <thead>
               <tr>
+                <th className="w-10">
+                  <Check checked={sel.allSelected} indeterminate={sel.someSelected} onChange={sel.toggleAll} label="Select all exit records" />
+                </th>
                 <th>IGN</th>
                 <th>Role</th>
                 <th>Joined</th>
@@ -249,7 +274,10 @@ export default function ExitsPage() {
             </thead>
             <tbody>
               {exits.map((x) => (
-                <tr key={x.id}>
+                <tr key={x.id} data-selected={sel.has(x.id)}>
+                  <td className="w-10">
+                    <Check checked={sel.has(x.id)} onChange={() => sel.toggle(x.id)} label={`Select ${x.ign}`} />
+                  </td>
                   <td className="font-semibold text-text">{x.ign}</td>
                   <td className="text-text-dim">{x.role_at_exit ?? "—"}</td>
                   <td className="text-text-dim">
@@ -273,6 +301,22 @@ export default function ExitsPage() {
           </table>
         </div>
       )}
+
+      <BulkBar count={sel.count} noun="record" onClear={sel.clear}>
+        <BulkButton tone="danger" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+          Delete
+        </BulkButton>
+      </BulkBar>
+
+      <BulkConfirm
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        title="Delete exit records?"
+        message={<>Delete <b className="text-text">{sel.count}</b> selected exit record{sel.count === 1 ? "" : "s"}? This can&apos;t be undone.</>}
+        confirmLabel={`Delete ${sel.count}`}
+        busy={bulkBusy}
+        onConfirm={bulkDelete}
+      />
     </div>
   );
 }

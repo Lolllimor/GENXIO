@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toastError, toastSuccess } from "../toast";
 import Canvas from "./Canvas";
@@ -7,6 +8,8 @@ import { fieldKey } from "./context";
 import { download, renderPoster, type ExportType } from "./export";
 import { FORMATS, FORMAT_LIST } from "./formats";
 import { createClient } from "@/lib/supabase/client";
+import type { TournamentPlayer, TournamentTeam } from "@/lib/supabase/types";
+import { buildLeaderboard, buildResults, fetchInnersBoard, leaderboardRows, standingsRows } from "@/lib/tournaments";
 import { fileToDataUrl, loadAssets, loadDrafts, saveAssets, saveDrafts, type Assets, type Draft } from "./library";
 import { DEFAULT_DROPS, type MapPresets } from "./maps";
 import LeftPanel from "./LeftPanel";
@@ -25,6 +28,11 @@ export default function Editor() {
   const [presets, setPresetsState] = useState<MapPresets>(DEFAULT_DROPS);
   const [busy, setBusy] = useState(false);
   const [batch, setBatch] = useState<{ type: ExportType; ratio: number } | null>(null);
+
+  const params = useSearchParams();
+  const tournamentParam = params.get("tournament");
+  const templateParam = params.get("template");
+  const imported = useRef(false);
 
   const posterRef = useRef<HTMLDivElement>(null);
   const batchRefs = useRef<Partial<Record<FormatId, HTMLDivElement | null>>>({});
@@ -49,6 +57,34 @@ export default function Editor() {
         setPresetsState((cur) => ({ ...cur, ...saved }));
       });
   }, [supabase]);
+
+  // Arriving from a tournament page: load its saved results into the chosen template.
+  useEffect(() => {
+    if (!tournamentParam || imported.current) return;
+    imported.current = true;
+    (async () => {
+      const t = await supabase.from("tournaments").select("name").eq("id", tournamentParam).single();
+      const teamRes = await supabase.from("tournament_teams").select("*").eq("tournament_id", tournamentParam);
+      const teams = (teamRes.data ?? []) as TournamentTeam[];
+      const playerRes = teams.length ? await supabase.from("tournament_players").select("*").in("team_id", teams.map((x) => x.id)) : { data: [] };
+      if (t.error || teamRes.error) {
+        toastError(t.error?.message ?? teamRes.error?.message ?? "Couldn't load that tournament.");
+        return;
+      }
+      const players = (playerRes.data ?? []) as TournamentPlayer[];
+      const results = buildResults(teams, players);
+      const board = buildLeaderboard(players);
+      const id = templateParam === "results" ? "results" : "leaderboard";
+      const tpl = getTemplate(id);
+      const set = (field: string, value: string) => ({ [fieldKey(tpl, field)]: value });
+      const values =
+        id === "results"
+          ? { ...set("title", t.data?.name ?? ""), ...set("standings", standingsRows(results)), ...set("col2", "Kills"), ...set("col3", "") }
+          : { ...set("event", t.data?.name ?? ""), ...set("rows", leaderboardRows(board)) };
+      setDoc((d) => ({ ...d, templateId: id, bg: d.bg.src === getTemplate(d.templateId).defaultBg ? { ...d.bg, src: tpl.defaultBg, dim: tpl.defaultDim ?? 0.04 } : d.bg, values: { ...d.values, ...values } }));
+      toastSuccess(`Loaded “${t.data?.name}” into the ${tpl.name} template.`);
+    })();
+  }, [tournamentParam, templateParam, supabase]);
 
   /* ---------- doc mutations ---------- */
 
@@ -104,6 +140,25 @@ export default function Editor() {
       toastSuccess(`${name} hot drops saved.`);
     },
     [presets, supabase],
+  );
+
+  /** Rebuild a ranked list from kills logged in Inners tournaments (other tournament types don't count). */
+  const fillFromData = useCallback(
+    async (kind: "kills") => {
+      if (kind !== "kills") return;
+      const { board, error } = await fetchInnersBoard(supabase);
+      if (error) {
+        toastError(error);
+        return;
+      }
+      if (board.length === 0) {
+        toastError("No Inners kills logged yet — record an Inners tournament first.");
+        return;
+      }
+      setValue("rows", leaderboardRows(board));
+      toastSuccess(`Filled ${Math.min(board.length, 24)} players from Inners tournaments.`);
+    },
+    [supabase, setValue],
   );
 
   /* ---------- uploads & library ---------- */
@@ -209,7 +264,7 @@ export default function Editor() {
           download(url, `genxio-${doc.templateId}-${f.id}.${batch.type === "png" ? "png" : "jpg"}`);
           await sleep(250);
         }
-        toastSuccess("All three sizes downloaded.");
+        toastSuccess(`All ${FORMAT_LIST.length} sizes downloaded.`);
       } catch (e) {
         console.error("Batch export failed", e);
         toastError(e instanceof Error ? e.message : "Couldn't render the posters.");
@@ -234,7 +289,7 @@ export default function Editor() {
 
       <div className="grid min-h-[640px] overflow-hidden border border-line bg-panel/30 lg:h-[calc(100vh-200px)] lg:grid-cols-[300px_minmax(0,1fr)_320px]">
         <aside className="order-2 max-h-[560px] overflow-hidden border-t border-line lg:order-1 lg:max-h-none lg:border-r lg:border-t-0">
-          <LeftPanel doc={doc} tpl={tpl} selected={selected} select={setSelected} setTemplate={setTemplate} setValue={setValue} setImage={setImage} toggleHidden={toggleHidden} upload={upload} presets={presets} setPreset={setPreset} />
+          <LeftPanel doc={doc} tpl={tpl} selected={selected} select={setSelected} setTemplate={setTemplate} setValue={setValue} setImage={setImage} toggleHidden={toggleHidden} upload={upload} presets={presets} setPreset={setPreset} onFill={fillFromData} />
         </aside>
 
         <div className="order-1 min-h-[460px] lg:order-2">

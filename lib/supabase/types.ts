@@ -171,3 +171,33 @@ export interface Achievement {
   created_by: string | null;
   created_at: string;
 }
+
+export type TournamentKind = "inners" | "other";
+
+export interface Tournament {
+  id: string;
+  name: string;
+  tournament_date: string;
+  team_size: number;
+  kind: TournamentKind;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournament_id: string;
+  name: string;
+  placement: number;
+  created_at: string;
+}
+
+export interface TournamentPlayer {
+  id: string;
+  team_id: string;
+  member_id: string | null;
+  ign: string;
+  kills: number;
+  created_at: string;
+}

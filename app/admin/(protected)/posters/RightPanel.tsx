@@ -164,7 +164,7 @@ export default function RightPanel({
           {busy ? "Rendering…" : "Download poster"}
         </button>
         <button type="button" disabled={busy} onClick={() => exportAll(type, ratio)} className="btn btn-outline w-full !py-2 !text-[10.5px]">
-          Download all 3 sizes
+          Download all {FORMAT_LIST.length} sizes
         </button>
       </PanelSection>
 

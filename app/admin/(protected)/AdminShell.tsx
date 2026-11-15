@@ -5,6 +5,7 @@ import "@mantine/notifications/styles.css";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { MantineProvider, createTheme, type CSSVariablesResolver } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -43,6 +44,7 @@ const ICONS = {
   achievements: "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 4h3a2 2 0 0 1-2 4M7 4H4a2 2 0 0 0 2 4",
   posters: "M4 4h16v16H4V4Zm0 12 5-5 4 4 3-3 4 4M9 9h.01",
   dice: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm3.5 5h.01M15.5 8h.01M12 12h.01M8.5 16h.01M15.5 16h.01",
+  clipboard: "M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Zm-2 2H6a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1M9 12h6M9 16h4",
   results: "M4 20V10M11 20V4M18 20v-7M3 20h18",
   history: "M12 8v4l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20",
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3a7.97 7.97 0 0 0-.3-2.2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.9-1.1L15 2h-6l-.4 2.7a8 8 0 0 0-1.9 1.1l-2.5-1-2 3.4 2.1 1.6A8 8 0 0 0 4 12c0 .75.1 1.48.3 2.2l-2.1 1.6 2 3.4 2.5-1c.57.46 1.2.83 1.9 1.1L9 22h6l.4-2.7c.7-.27 1.33-.64 1.9-1.1l2.5 1 2-3.4-2.1-1.6c.2-.72.3-1.45.3-2.2Z",
@@ -69,6 +71,8 @@ const NAV_GROUPS = [
     label: "Clan",
     links: [
       { href: "/admin/randomizer", label: "Randomizer", icon: ICONS.dice },
+      { href: "/admin/tournaments", label: "Tournaments", icon: ICONS.achievements },
+      { href: "/admin/registration", label: "Scrim Registration", icon: ICONS.clipboard },
       { href: "/admin/posters", label: "Poster Maker", icon: ICONS.posters },
   { href: "/admin/exits", label: "Exits", icon: ICONS.exits },
       { href: "/admin/news", label: "News", icon: ICONS.news },
@@ -92,6 +96,13 @@ export default function AdminShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [today, setToday] = useState("");
+
+  useEffect(() => {
+    queueMicrotask(() =>
+      setToday(new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })),
+    );
+  }, []);
 
   const activeLink = LINKS.find((l) => (l.exact ? pathname === l.href : pathname?.startsWith(l.href)));
 
@@ -105,7 +116,12 @@ export default function AdminShell({
   return (
     <MantineProvider theme={mantineTheme} defaultColorScheme="dark" cssVariablesResolver={cssVariablesResolver}>
       <Notifications position="top-right" limit={4} />
-      <div className="admin-shell flex min-h-screen w-full flex-col md:flex-row">
+      <div className="admin-ambient" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </div>
+      <div className="admin-shell relative z-[1] flex min-h-screen w-full flex-col md:flex-row">
         <aside className="relative flex shrink-0 flex-col border-b border-line bg-[#0c0c12]/88 px-4 py-5 backdrop-blur-md md:sticky md:top-0 md:h-screen md:w-[248px] md:border-b-0 md:border-r md:px-4 md:py-6">
           <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-px bg-gradient-to-b from-purple/50 via-line to-transparent md:block" />
           <Link href="/admin" className="mb-7 flex items-center gap-3 px-1">
@@ -149,8 +165,14 @@ export default function AdminShell({
           </nav>
 
           <div className="mt-auto hidden border-t border-line pt-4 md:block">
-            <div className="mb-2 truncate px-1 text-[11px] text-text-dim">{email}</div>
-            <button onClick={handleSignOut} className="btn btn-outline w-full !py-2 !text-[10.5px]">
+            <div className="flex items-center gap-3 border border-line bg-white/[0.03] p-2.5 [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)]">
+              <span className="admin-avatar">{(email[0] ?? "A").toUpperCase()}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-semibold text-text">{email}</div>
+                <div className="live-dot mt-0.5 !text-[9px]">Admin</div>
+              </div>
+            </div>
+            <button onClick={handleSignOut} className="btn btn-outline mt-2.5 w-full !py-2 !text-[10.5px]">
               Sign out
             </button>
           </div>
@@ -164,15 +186,19 @@ export default function AdminShell({
                 <span className="text-purple">{"//"}</span> Admin <span className="text-purple">/</span> {activeLink?.label ?? ""}
               </div>
               <div className="flex items-center gap-4">
+                {today && (
+                  <span className="hidden border border-line bg-white/[0.03] px-2.5 py-1 font-display text-[11px] uppercase tracking-[0.14em] text-text-dim md:inline">
+                    {today}
+                  </span>
+                )}
                 <span className="live-dot hidden md:inline-flex">Live</span>
-                <span className="hidden text-[11px] text-text-dim md:inline">{email}</span>
                 <button onClick={handleSignOut} className="text-[11px] font-semibold uppercase tracking-wide text-text-dim hover:text-text md:hidden">
                   Sign out
                 </button>
               </div>
             </div>
           </div>
-          <main className="flex-1 px-5 py-6 md:px-8 md:py-8">
+          <main className="admin-main flex-1 px-5 py-6 md:px-8 md:py-8">
             <div className="mx-auto w-full max-w-[1320px]">{children}</div>
           </main>
         </div>

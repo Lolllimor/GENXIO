@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type FormatId = "portrait" | "square" | "story";
+export type FormatId = "portrait" | "tall" | "square" | "story";
 
 export interface FormatDef {
   id: FormatId;
@@ -19,6 +19,8 @@ export interface FieldDef {
   default: string;
   /** Section this field belongs to (can be toggled off as a block). */
   section?: string;
+  /** Adds a one-click fill button under this field (data pulled from Supabase). */
+  fill?: "kills";
   /** Shared fields keep their value when switching templates (org, tagline, logo). */
   shared?: boolean;
 }

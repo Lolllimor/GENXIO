@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import SearchBox from "../SearchBox";
 import RowMenu from "../RowMenu";
+import { BulkBar, BulkButton, BulkConfirm, Check, useSelection } from "../bulk";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { MP_OPERATORS, BR_CLASSES, ACTIVITY_LEVELS, CLAN_TEAMS, clanTeamMeta } from "@/lib/gameData";
@@ -84,6 +85,10 @@ export default function RosterPage() {
         return a.ign.localeCompare(b.ign);
       });
   }, [members, teamFilter, query]);
+
+  const sel = useSelection(visibleMembers.map((m) => m.id));
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,6 +197,63 @@ export default function RosterPage() {
     }
     const label = clanTeamMeta(next)?.label ?? "Unassigned";
     toastSuccess(`${label} spot saved.`);
+  }
+
+  async function bulkMove(team: ClanTeam | "") {
+    const ids = sel.selected;
+    if (ids.length === 0) return;
+    const next = team || null;
+    const label = clanTeamMeta(next)?.label ?? "Unassigned";
+    const previous = members;
+    setBulkBusy(true);
+    setMembers((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, clan_team: next } : m)));
+    const { error } = await supabase.from("members").update({ clan_team: next }).in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      setMembers(previous);
+      const message = clanTeamError(error.message);
+      setError(message);
+      toastError(message);
+      return;
+    }
+    toastSuccess(`${ids.length} member${ids.length === 1 ? "" : "s"} moved to ${label}.`);
+    sel.clear();
+  }
+
+  /** Flip members active/inactive without logging a formal exit. */
+  async function setStatus(ids: string[], status: MemberStatus) {
+    if (ids.length === 0) return;
+    const previous = members;
+    setBulkBusy(true);
+    setMembers((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, status } : m)));
+    const { error } = await supabase.from("members").update({ status }).in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      setMembers(previous);
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    const word = status === "ACTIVE" ? "active" : "inactive";
+    toastSuccess(ids.length === 1 ? `Member set ${word}.` : `${ids.length} members set ${word}.`);
+    if (ids.length > 1) sel.clear();
+  }
+
+  async function bulkDelete() {
+    const ids = sel.selected;
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("members").delete().in("id", ids);
+    setBulkBusy(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    toastSuccess(`${ids.length} member${ids.length === 1 ? "" : "s"} deleted.`);
+    setBulkDeleteOpen(false);
+    sel.clear();
+    load();
   }
 
   async function confirmDeleteMember() {
@@ -568,10 +630,13 @@ export default function RosterPage() {
             <p className="mb-4 text-sm text-text-dim">No members match this filter.</p>
           )}
 
-          <div className="admin-table-wrap">
+          <div className="admin-table-wrap admin-table-scroll">
             <table className="min-w-[760px]">
               <thead>
                 <tr>
+                  <th className="w-10">
+                    <Check checked={sel.allSelected} indeterminate={sel.someSelected} onChange={sel.toggleAll} label="Select all members" />
+                  </th>
                   <th>IGN</th>
                   <th>Team</th>
                   <th>Status</th>
@@ -583,7 +648,10 @@ export default function RosterPage() {
               </thead>
               <tbody>
                 {visibleMembers.map((m) => (
-                  <tr key={m.id}>
+                  <tr key={m.id} data-selected={sel.has(m.id)}>
+                    <td className="w-10">
+                      <Check checked={sel.has(m.id)} onChange={() => sel.toggle(m.id)} label={`Select ${m.ign}`} />
+                    </td>
                     <td>
                       <div className="flex items-center gap-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-line bg-purple/15 font-display text-[12px] font-bold text-purple [clip-path:polygon(6px_0,100%_0,100%_calc(100%-6px),calc(100%-6px)_100%,0_100%,0_6px)]">
@@ -626,7 +694,12 @@ export default function RosterPage() {
                     <td className="text-right">
                       <RowMenu
                         onEdit={() => startEdit(m)}
-                        extra={{ label: "Log exit", onClick: () => startExit(m), color: "var(--amber)" }}
+                        extras={[
+                          m.status === "ACTIVE"
+                            ? { label: "Set inactive", onClick: () => setStatus([m.id], "INACTIVE") }
+                            : { label: "Set active", onClick: () => setStatus([m.id], "ACTIVE"), color: "var(--green)" },
+                          { label: "Log exit", onClick: () => startExit(m), color: "var(--amber)" },
+                        ]}
                         onDelete={() => setMemberToDelete(m)}
                       />
                     </td>
@@ -637,6 +710,36 @@ export default function RosterPage() {
           </div>
         </>
       )}
+
+      <BulkBar count={sel.count} noun="member" onClear={sel.clear}>
+        {CLAN_TEAMS.map((t) => (
+          <BulkButton key={t.id} onClick={() => bulkMove(t.id)} disabled={bulkBusy}>
+            → {t.label}
+          </BulkButton>
+        ))}
+        <BulkButton onClick={() => bulkMove("")} disabled={bulkBusy}>
+          → Unassigned
+        </BulkButton>
+        <BulkButton onClick={() => setStatus(sel.selected, "INACTIVE")} disabled={bulkBusy}>
+          Set inactive
+        </BulkButton>
+        <BulkButton tone="good" onClick={() => setStatus(sel.selected, "ACTIVE")} disabled={bulkBusy}>
+          Set active
+        </BulkButton>
+        <BulkButton tone="danger" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+          Delete
+        </BulkButton>
+      </BulkBar>
+
+      <BulkConfirm
+        open={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        title="Delete members?"
+        message={<>Permanently delete <b className="text-text">{sel.count}</b> selected member{sel.count === 1 ? "" : "s"}? This can&apos;t be undone. Consider logging an exit instead to keep their history.</>}
+        confirmLabel={`Delete ${sel.count}`}
+        busy={bulkBusy}
+        onConfirm={bulkDelete}
+      />
     </div>
   );
 }

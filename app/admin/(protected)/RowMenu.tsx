@@ -15,15 +15,15 @@ export default function RowMenu({
   onView,
   onEdit,
   onDelete,
-  extra,
+  extras,
 }: {
   onView?: () => void;
   onEdit?: () => void;
   onDelete: () => void;
-  extra?: { label: string; onClick: () => void; color?: string };
+  extras?: { label: string; onClick: () => void; color?: string }[];
 }) {
   return (
-    <Menu shadow="md" width={140} position="bottom-end" withinPortal radius={0}>
+    <Menu shadow="md" width={160} position="bottom-end" withinPortal radius={0}>
       <Menu.Target>
         <button
           type="button"
@@ -56,14 +56,11 @@ export default function RowMenu({
             Edit
           </Menu.Item>
         )}
-        {extra && (
-          <Menu.Item
-            onClick={extra.onClick}
-            styles={{ item: { ...itemStyle, color: extra.color ?? "var(--text)" } }}
-          >
-            {extra.label}
+        {extras?.map((x) => (
+          <Menu.Item key={x.label} onClick={x.onClick} styles={{ item: { ...itemStyle, color: x.color ?? "var(--text)" } }}>
+            {x.label}
           </Menu.Item>
-        )}
+        ))}
         <Menu.Item onClick={onDelete} styles={{ item: { ...itemStyle, color: "var(--red)" } }}>
           Delete
         </Menu.Item>

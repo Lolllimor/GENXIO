@@ -1,5 +1,6 @@
 import type { BgState, PosterDoc, TemplateDef } from "../types";
 import { hotdrop } from "./HotDrop";
+import { leaderboard } from "./Leaderboard";
 import { lineup } from "./Lineup";
 import { matchday } from "./Matchday";
 import { mvp } from "./Mvp";
@@ -15,6 +16,7 @@ export const TEMPLATES: TemplateDef[] = [
   winnersAnnouncement,
   matchday,
   results,
+  leaderboard,
   lineup,
   mvp,
   hotdrop,

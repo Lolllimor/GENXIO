@@ -58,7 +58,7 @@ function HotDropEditor({ mapName, list, onSave }: { mapName: string; list: strin
   );
 }
 
-function FieldRow({ f, tpl, doc, selected, onSelect, setValue, setImage, upload, presets, setPreset }: {
+function FieldRow({ f, tpl, doc, selected, onSelect, setValue, setImage, upload, presets, setPreset, onFill }: {
   f: FieldDef;
   tpl: TemplateDef;
   doc: PosterDoc;
@@ -69,7 +69,9 @@ function FieldRow({ f, tpl, doc, selected, onSelect, setValue, setImage, upload,
   upload: (file: File) => Promise<string | null>;
   presets: MapPresets;
   setPreset: (map: string, list: string[]) => void;
+  onFill: (kind: "kills") => Promise<void>;
 }) {
+  const [filling, setFilling] = useState(false);
   const key = fieldKey(tpl, f.id);
   const value = doc.values[key] ?? f.default;
   const img = doc.images[key] !== undefined ? doc.images[key] : f.default || null;
@@ -101,7 +103,25 @@ function FieldRow({ f, tpl, doc, selected, onSelect, setValue, setImage, upload,
           </>
         );
       })()}
-      {f.kind === "textarea" && <textarea rows={2} value={value} onChange={(e) => setValue(f.id, e.target.value)} />}
+      {f.kind === "textarea" && (
+        <>
+          <textarea rows={f.fill ? 6 : 2} value={value} onChange={(e) => setValue(f.id, e.target.value)} />
+          {f.fill && (
+            <button
+              type="button"
+              disabled={filling}
+              className="btn btn-outline mt-2 w-full !py-2 !text-[10.5px]"
+              onClick={async () => {
+                setFilling(true);
+                await onFill(f.fill!);
+                setFilling(false);
+              }}
+            >
+              {filling ? "Loading…" : "Fill from Inners kills"}
+            </button>
+          )}
+        </>
+      )}
       {f.kind === "image" && (
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border border-line bg-black">
@@ -133,7 +153,7 @@ function FieldRow({ f, tpl, doc, selected, onSelect, setValue, setImage, upload,
   );
 }
 
-export default function LeftPanel({ doc, tpl, selected, select, setTemplate, setValue, setImage, toggleHidden, upload, presets, setPreset }: {
+export default function LeftPanel({ doc, tpl, selected, select, setTemplate, setValue, setImage, toggleHidden, upload, presets, setPreset, onFill }: {
   doc: PosterDoc;
   tpl: TemplateDef;
   selected: string | null;
@@ -145,11 +165,12 @@ export default function LeftPanel({ doc, tpl, selected, select, setTemplate, set
   upload: (file: File) => Promise<string | null>;
   presets: MapPresets;
   setPreset: (map: string, list: string[]) => void;
+  onFill: (kind: "kills") => Promise<void>;
 }) {
   const loose = tpl.fields.filter((f) => !f.section);
 
   const row = (f: FieldDef) => (
-    <FieldRow key={f.id} f={f} tpl={tpl} doc={doc} selected={selected} onSelect={select} setValue={setValue} setImage={setImage} upload={upload} presets={presets} setPreset={setPreset} />
+    <FieldRow key={f.id} f={f} tpl={tpl} doc={doc} selected={selected} onSelect={select} setValue={setValue} setImage={setImage} upload={upload} presets={presets} setPreset={setPreset} onFill={onFill} />
   );
 
   return (
