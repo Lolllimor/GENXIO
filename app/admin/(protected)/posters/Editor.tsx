@@ -66,12 +66,17 @@ export default function Editor() {
       const t = await supabase.from("tournaments").select("name").eq("id", tournamentParam).single();
       const teamRes = await supabase.from("tournament_teams").select("*").eq("tournament_id", tournamentParam);
       const teams = (teamRes.data ?? []) as TournamentTeam[];
-      const playerRes = teams.length ? await supabase.from("tournament_players").select("*").in("team_id", teams.map((x) => x.id)) : { data: [] };
+      const playerRes = teams.length ? await supabase.from("tournament_players").select("*, members(ign)").in("team_id", teams.map((x) => x.id)) : { data: [] };
       if (t.error || teamRes.error) {
         toastError(t.error?.message ?? teamRes.error?.message ?? "Couldn't load that tournament.");
         return;
       }
-      const players = (playerRes.data ?? []) as TournamentPlayer[];
+      type LivePlayer = TournamentPlayer & { members?: { ign: string } | { ign: string }[] | null };
+      // use each player's current name (they may have been renamed since the tournament)
+      const players = ((playerRes.data ?? []) as LivePlayer[]).map((p) => {
+        const live = Array.isArray(p.members) ? p.members[0] : p.members;
+        return { ...p, ign: live?.ign ?? p.ign };
+      });
       const results = buildResults(teams, players);
       const board = buildLeaderboard(players);
       const id = templateParam === "results" ? "results" : "leaderboard";

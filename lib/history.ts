@@ -8,6 +8,9 @@ export const HISTORY_EVENTS = [
   { id: "assigned", label: "Assigned" },
   { id: "unassigned", label: "Unassigned" },
   { id: "exited", label: "Exited" },
+  { id: "deactivated", label: "Set inactive" },
+  { id: "reactivated", label: "Reactivated" },
+  { id: "renamed", label: "Renamed" },
 ] as const satisfies readonly { id: HistoryEventType; label: string }[];
 
 export const HISTORY_EVENT_STYLE: Record<HistoryEventType, string> = {
@@ -17,6 +20,9 @@ export const HISTORY_EVENT_STYLE: Record<HistoryEventType, string> = {
   demoted: "border-amber bg-amber/10 text-amber",
   unassigned: "border-line bg-panel-2 text-text-dim",
   exited: "border-red bg-red/10 text-red",
+  deactivated: "border-amber bg-amber/10 text-amber",
+  reactivated: "border-green bg-green/10 text-green",
+  renamed: "border-purple bg-purple/10 text-purple",
 };
 
 export const HISTORY_DOT_STYLE: Record<HistoryEventType, string> = {
@@ -26,6 +32,9 @@ export const HISTORY_DOT_STYLE: Record<HistoryEventType, string> = {
   demoted: "bg-amber",
   unassigned: "bg-text-dim",
   exited: "bg-red",
+  deactivated: "bg-amber",
+  reactivated: "bg-green",
+  renamed: "bg-purple",
 };
 
 export function historyEventLabel(type: HistoryEventType) {
@@ -53,6 +62,12 @@ export function historyHeadline(event: MemberHistory) {
       return from ? `${event.ign} removed from ${from}` : `${event.ign} unassigned`;
     case "exited":
       return `${event.ign} left the roster`;
+    case "deactivated":
+      return `${event.ign} set inactive`;
+    case "reactivated":
+      return `${event.ign} is active again`;
+    case "renamed":
+      return event.detail ? `Renamed ${event.detail}` : `${event.ign} changed their name`;
   }
 }
 

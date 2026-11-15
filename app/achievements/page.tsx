@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import ComingSoon from "../components/ComingSoon";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -14,6 +15,17 @@ async function getAchievements(): Promise<Achievement[]> {
     .eq("published", true)
     .order("achieved_on", { ascending: false });
   return data ?? [];
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const items = await getAchievements();
+  return {
+    title: "Achievements & Tournaments",
+    description: "Scrim results, ranked pushes and tournament placements earned by GenXio Esports.",
+    alternates: { canonical: "/achievements" },
+    // Until something is published this is a "coming soon" page — keep it out of search.
+    robots: items.length === 0 ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function AchievementsPage() {

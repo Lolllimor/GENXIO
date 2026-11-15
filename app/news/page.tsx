@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import ComingSoon from "../components/ComingSoon";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -14,6 +15,17 @@ async function getPosts(): Promise<NewsPost[]> {
     .eq("published", true)
     .order("post_date", { ascending: false });
   return data ?? [];
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const items = await getPosts();
+  return {
+    title: "News & Announcements",
+    description: "Roster moves, scrim results and clan-wide updates from GenXio Esports.",
+    alternates: { canonical: "/news" },
+    // Until something is published this is a "coming soon" page — keep it out of search.
+    robots: items.length === 0 ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function NewsPage() {

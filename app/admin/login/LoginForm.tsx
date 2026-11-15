@@ -41,7 +41,7 @@ export default function LoginForm() {
       <div className="mb-5 flex items-start justify-between gap-4 border-b border-line pb-4">
         <div>
           <div className="font-display text-[11px] uppercase tracking-[0.18em] text-purple">
-            // Authenticate
+            {"//"} Authenticate
           </div>
           <div className="mt-1 font-display text-lg font-bold uppercase tracking-wide text-text">
             Operator sign-in

@@ -47,19 +47,19 @@ const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ?
 export async function fetchInnersBoard(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("tournament_players")
-    .select("kills, member_id, ign, members(clan_tag), tournament_teams(tournaments(kind))");
+    .select("kills, member_id, ign, members(ign, clan_tag), tournament_teams(tournaments(kind))");
   if (error) return { error: error.message, board: [] as ReturnType<typeof buildLeaderboard> };
 
   type Row = {
     kills: number;
     member_id: string | null;
     ign: string;
-    members: { clan_tag: string } | { clan_tag: string }[] | null;
+    members: { ign: string; clan_tag: string } | { ign: string; clan_tag: string }[] | null;
     tournament_teams: { tournaments: { kind: string } | { kind: string }[] | null } | { tournaments: { kind: string } | { kind: string }[] | null }[] | null;
   };
 
   const rows = ((data ?? []) as unknown as Row[])
     .filter((r) => one(one(r.tournament_teams)?.tournaments)?.kind === "inners")
-    .map((r) => ({ ign: r.ign, kills: r.kills, member_id: r.member_id, clan_tag: one(r.members)?.clan_tag ?? null }));
+    .map((r) => ({ ign: one(r.members)?.ign ?? r.ign, kills: r.kills, member_id: r.member_id, clan_tag: one(r.members)?.clan_tag ?? null }));  // current name wins over the saved snapshot
   return { error: null as string | null, board: buildLeaderboard(rows) };
 }

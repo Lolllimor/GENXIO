@@ -64,6 +64,9 @@ export default function RosterPage() {
   const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
   const [query, setQuery] = useState("");
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [renaming, setRenaming] = useState<Member | null>(null);
+  const [newName, setNewName] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
   const [deletingMember, setDeletingMember] = useState(false);
   const [savingTeamId, setSavingTeamId] = useState<string | null>(null);
 
@@ -256,6 +259,36 @@ export default function RosterPage() {
     load();
   }
 
+  function startRename(m: Member) {
+    setRenaming(m);
+    setNewName(m.ign);
+  }
+
+  async function submitRename(e: FormEvent) {
+    e.preventDefault();
+    if (!renaming) return;
+    const next = newName.trim();
+    if (!next || next === renaming.ign) {
+      setRenaming(null);
+      return;
+    }
+    if (members.some((m) => m.id !== renaming.id && m.clan_tag === renaming.clan_tag && m.ign.toLowerCase() === next.toLowerCase())) {
+      toastError(`${renaming.clan_tag}丨${next} is already on the roster.`);
+      return;
+    }
+    setRenameSaving(true);
+    const { error } = await supabase.from("members").update({ ign: next }).eq("id", renaming.id);
+    setRenameSaving(false);
+    if (error) {
+      setError(error.message);
+      toastError(error.message);
+      return;
+    }
+    toastSuccess(`${renaming.ign} is now ${next}.`);
+    setRenaming(null);
+    load();
+  }
+
   async function confirmDeleteMember() {
     if (!memberToDelete) return;
     setDeletingMember(true);
@@ -359,6 +392,26 @@ export default function RosterPage() {
           {error}
         </div>
       )}
+
+      <Modal open={renaming !== null} onClose={() => setRenaming(null)} title="Change in-game name">
+        {renaming && (
+          <form onSubmit={submitRename}>
+            <p className="mb-3.5 text-xs text-text-dim">
+              Currently <b className="text-text">{renaming.clan_tag}丨{renaming.ign}</b>. Leaderboards and rosters use the new name straight away, and the change is logged on the Timeline.
+            </p>
+            <label>New name</label>
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} required autoFocus />
+            <div className="mt-5 flex gap-3">
+              <button type="submit" disabled={renameSaving} className="btn btn-primary flex-1">
+                {renameSaving ? "Saving…" : "Save name"}
+              </button>
+              <button type="button" onClick={() => setRenaming(null)} className="btn btn-outline flex-1">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       <Modal open={memberToDelete !== null} onClose={() => setMemberToDelete(null)} title="Delete member?" accent="amber">
         {memberToDelete && (
@@ -695,6 +748,7 @@ export default function RosterPage() {
                       <RowMenu
                         onEdit={() => startEdit(m)}
                         extras={[
+                          { label: "Rename", onClick: () => startRename(m) },
                           m.status === "ACTIVE"
                             ? { label: "Set inactive", onClick: () => setStatus([m.id], "INACTIVE") }
                             : { label: "Set active", onClick: () => setStatus([m.id], "ACTIVE"), color: "var(--green)" },

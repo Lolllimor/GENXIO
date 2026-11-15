@@ -32,7 +32,7 @@ export default function Timeline({ events }: { events: MemberHistory[] }) {
               <span className="text-[11px] text-text-dim">{formatHistoryWhen(event.created_at)}</span>
             </div>
             <div className="mt-1.5 text-[13.5px] font-semibold text-text">{historyHeadline(event)}</div>
-            {(from || to) && event.event_type !== "exited" && (
+            {(from || to) && ["added", "assigned", "promoted", "demoted", "unassigned"].includes(event.event_type) && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-text-dim">
                 {from && (
                   <span className={`border px-2 py-[2px] font-semibold uppercase tracking-wide ${CLAN_TEAM_STYLE[from.id]}`}>

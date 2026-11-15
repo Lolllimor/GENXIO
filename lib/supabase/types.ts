@@ -2,7 +2,7 @@ export type MemberStatus = "ACTIVE" | "INACTIVE";
 export type Mode = "MP" | "BR" | "Hybrid";
 export type Activity = "Low" | "Average" | "High";
 export type ClanTeam = "e-sport" | "elites" | "underdog";
-export type HistoryEventType = "added" | "assigned" | "promoted" | "demoted" | "unassigned" | "exited";
+export type HistoryEventType = "added" | "assigned" | "promoted" | "demoted" | "unassigned" | "exited" | "deactivated" | "reactivated" | "renamed";
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 export type RosterStatus = "pending" | "accepted" | "rejected";
 
@@ -40,6 +40,7 @@ export interface MemberHistory {
   event_type: HistoryEventType;
   from_team: ClanTeam | null;
   to_team: ClanTeam | null;
+  detail?: string | null;
   created_by: string | null;
   created_at: string;
 }
