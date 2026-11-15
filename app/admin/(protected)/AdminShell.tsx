@@ -42,6 +42,7 @@ const ICONS = {
   news: "M4 4h13v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Zm13 4h3v10a2 2 0 0 1-2 2h-1M8 8h6M8 12h6M8 16h4",
   achievements: "M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 4h3a2 2 0 0 1-2 4M7 4H4a2 2 0 0 0 2 4",
   posters: "M4 4h16v16H4V4Zm0 12 5-5 4 4 3-3 4 4M9 9h.01",
+  dice: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm3.5 5h.01M15.5 8h.01M12 12h.01M8.5 16h.01M15.5 16h.01",
   results: "M4 20V10M11 20V4M18 20v-7M3 20h18",
   history: "M12 8v4l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20",
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3a7.97 7.97 0 0 0-.3-2.2l2.1-1.6-2-3.4-2.5 1a8 8 0 0 0-1.9-1.1L15 2h-6l-.4 2.7a8 8 0 0 0-1.9 1.1l-2.5-1-2 3.4 2.1 1.6A8 8 0 0 0 4 12c0 .75.1 1.48.3 2.2l-2.1 1.6 2 3.4 2.5-1c.57.46 1.2.83 1.9 1.1L9 22h6l.4-2.7c.7-.27 1.33-.64 1.9-1.1l2.5 1 2-3.4-2.1-1.6c.2-.72.3-1.45.3-2.2Z",
@@ -67,6 +68,7 @@ const NAV_GROUPS = [
   {
     label: "Clan",
     links: [
+      { href: "/admin/randomizer", label: "Randomizer", icon: ICONS.dice },
       { href: "/admin/posters", label: "Poster Maker", icon: ICONS.posters },
   { href: "/admin/exits", label: "Exits", icon: ICONS.exits },
       { href: "/admin/news", label: "News", icon: ICONS.news },
