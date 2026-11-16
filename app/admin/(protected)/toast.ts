@@ -44,3 +44,13 @@ export function toastError(message: string) {
     autoClose: 5000,
   });
 }
+
+export function toastInfo(message: string, title = "New") {
+  notifications.show({
+    ...base,
+    title,
+    message,
+    color: "cyan",
+    autoClose: 8000,
+  });
+}

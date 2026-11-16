@@ -41,5 +41,14 @@ export default async function ProtectedAdminLayout({
     );
   }
 
-  return <AdminShell email={adminRow.email}>{children}</AdminShell>;
+  const { count: pending } = await supabase
+    .from("applications")
+    .select("id", { count: "exact", head: true })
+    .eq("roster_status", "pending");
+
+  return (
+    <AdminShell email={adminRow.email} pendingApplications={pending ?? 0}>
+      {children}
+    </AdminShell>
+  );
 }

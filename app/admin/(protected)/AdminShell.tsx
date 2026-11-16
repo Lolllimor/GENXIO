@@ -5,10 +5,11 @@ import "@mantine/notifications/styles.css";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { MantineProvider, createTheme, type CSSVariablesResolver } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { toastInfo } from "./toast";
 
 const mantineTheme = createTheme({
   primaryColor: "grape",
@@ -89,14 +90,37 @@ const LINKS = NAV_GROUPS.flatMap((g) => g.links);
 
 export default function AdminShell({
   email,
+  pendingApplications = 0,
   children,
 }: {
   email: string;
+  pendingApplications?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [today, setToday] = useState("");
+  const [pending, setPending] = useState(pendingApplications);
+  const lastSeen = useRef(pendingApplications);
+
+  // Keep the Applications badge fresh: check on every page change and every 45 seconds.
+  useEffect(() => {
+    const supabase = createClient();
+    let stopped = false;
+    const check = async () => {
+      const { count } = await supabase.from("applications").select("id", { count: "exact", head: true }).eq("roster_status", "pending");
+      if (stopped || count === null) return;
+      if (count > lastSeen.current) toastInfo(count - lastSeen.current === 1 ? "A new application just came in." : `${count - lastSeen.current} new applications just came in.`, "Applications");
+      lastSeen.current = count;
+      setPending(count);
+    };
+    queueMicrotask(check);
+    const timer = setInterval(check, 45_000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     queueMicrotask(() =>
@@ -157,6 +181,11 @@ export default function AdminShell({
                       <Icon d={l.icon} />
                       {active ? "// " : ""}
                       {l.label}
+                      {l.href === "/admin/applications" && pending > 0 && (
+                        <span className="admin-badge" aria-label={`${pending} pending`}>
+                          {pending > 99 ? "99+" : pending}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

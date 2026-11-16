@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAN_TEAMS } from "@/lib/gameData";
 import { toastError, toastSuccess } from "../toast";
 import PlayerSelect from "../PlayerSelect";
+import { getDiscordWebhook, messageContent, sendDiscord } from "@/lib/discord";
 
 interface Player {
   id: string;
@@ -135,6 +136,17 @@ export default function ScrimRegistrationPage() {
     return [head, "", blocks.join("\n\n")].join("\n");
   }, [event, teams, label]);
 
+  async function postToDiscord() {
+    const hook = await getDiscordWebhook(supabase);
+    if (!hook) {
+      toastError("Add your Discord webhook in Settings first.");
+      return;
+    }
+    const err = await sendDiscord(hook, messageContent(text));
+    if (err) toastError(err);
+    else toastSuccess("Posted to Discord.");
+  }
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
@@ -249,9 +261,14 @@ export default function ScrimRegistrationPage() {
         <div className="xl:sticky xl:top-6 xl:self-start">
           <div className="mb-3 flex items-center justify-between">
             <div className="eyebrow">Message preview</div>
-            <button type="button" onClick={copy} className="btn btn-primary !px-4 !py-2 !text-[10.5px]">
-              Copy message
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={postToDiscord} className="btn btn-outline !px-4 !py-2 !text-[10.5px]">
+                Post to Discord
+              </button>
+              <button type="button" onClick={copy} className="btn btn-primary !px-4 !py-2 !text-[10.5px]">
+                Copy message
+              </button>
+            </div>
           </div>
           <pre className="admin-panel max-h-[70vh] overflow-auto whitespace-pre-wrap break-words text-[13px] leading-relaxed text-text">{text}</pre>
         </div>

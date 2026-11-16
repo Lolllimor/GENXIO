@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { OrgSettings } from "@/lib/supabase/types";
 import { toastSuccess, toastError } from "../toast";
+import DiscordSettings from "./DiscordSettings";
 
 const EMPTY_FORM = {
   organization_name: "",
@@ -200,6 +201,7 @@ export default function SettingsPage() {
           </div>
         </form>
       )}
+      <DiscordSettings />
     </div>
   );
 }

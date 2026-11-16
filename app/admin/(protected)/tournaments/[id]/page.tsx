@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tournament, TournamentKind, TournamentPlayer, TournamentTeam } from "@/lib/supabase/types";
+import { getDiscordWebhook, sendDiscord, tournamentEmbed } from "@/lib/discord";
 import { buildLeaderboard, buildResults } from "@/lib/tournaments";
 import PlayerSelect from "../../PlayerSelect";
 import { Segmented } from "../../posters/controls";
@@ -201,6 +202,21 @@ export default function TournamentDetailPage() {
     return { results, board: buildLeaderboard(playerRows) };
   }, [teams, byId, id, ranks]);
 
+  async function postToDiscord() {
+    const hook = await getDiscordWebhook(supabase);
+    if (!hook) {
+      toastError("Add your Discord webhook in Settings first.");
+      return;
+    }
+    if (summary.results.length === 0) {
+      toastError("Add some teams first.");
+      return;
+    }
+    const err = await sendDiscord(hook, tournamentEmbed(name, summary.results, summary.board));
+    if (err) toastError(err);
+    else toastSuccess("Posted to Discord.");
+  }
+
   async function copyResults() {
     const lines = [`🏆 ${name.trim().toUpperCase() || "TOURNAMENT"} – RESULTS`, ""];
     for (const r of summary.results) {
@@ -327,9 +343,14 @@ export default function TournamentDetailPage() {
           <div className="admin-panel">
             <div className="mb-3 flex items-center justify-between">
               <div className="eyebrow">Standings</div>
-              <button type="button" onClick={copyResults} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
-                Copy
-              </button>
+              <div className="flex gap-3">
+                <button type="button" onClick={postToDiscord} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
+                  Post to Discord
+                </button>
+                <button type="button" onClick={copyResults} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
+                  Copy
+                </button>
+              </div>
             </div>
             {summary.results.length === 0 ? (
               <p className="text-[12px] text-text-dim">Add teams to see standings (ranked by total kills).</p>
