@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TeamResult } from "./tournaments";
 
+/**
+ * Discord integration is switched off for now. To turn it on later:
+ *   1. run supabase/add_discord_alerts.sql in the Supabase SQL editor
+ *   2. set this to true
+ *   3. add the webhook URL under Settings → Discord alerts
+ */
+export const DISCORD_ENABLED = false;
+
 export const WEBHOOK_KEY = "discord_webhook_url";
 export const NOTIFY_APPLICATIONS_KEY = "discord_notify_applications";
 

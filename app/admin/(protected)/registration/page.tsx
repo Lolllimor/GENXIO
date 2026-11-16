@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CLAN_TEAMS } from "@/lib/gameData";
 import { toastError, toastSuccess } from "../toast";
 import PlayerSelect from "../PlayerSelect";
-import { getDiscordWebhook, messageContent, sendDiscord } from "@/lib/discord";
+import { DISCORD_ENABLED, getDiscordWebhook, messageContent, sendDiscord } from "@/lib/discord";
 
 interface Player {
   id: string;
@@ -262,9 +262,11 @@ export default function ScrimRegistrationPage() {
           <div className="mb-3 flex items-center justify-between">
             <div className="eyebrow">Message preview</div>
             <div className="flex gap-2">
-              <button type="button" onClick={postToDiscord} className="btn btn-outline !px-4 !py-2 !text-[10.5px]">
-                Post to Discord
-              </button>
+              {DISCORD_ENABLED && (
+                <button type="button" onClick={postToDiscord} className="btn btn-outline !px-4 !py-2 !text-[10.5px]">
+                  Post to Discord
+                </button>
+              )}
               <button type="button" onClick={copy} className="btn btn-primary !px-4 !py-2 !text-[10.5px]">
                 Copy message
               </button>

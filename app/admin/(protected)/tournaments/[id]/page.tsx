@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Tournament, TournamentKind, TournamentPlayer, TournamentTeam } from "@/lib/supabase/types";
-import { getDiscordWebhook, sendDiscord, tournamentEmbed } from "@/lib/discord";
+import { DISCORD_ENABLED, getDiscordWebhook, sendDiscord, tournamentEmbed } from "@/lib/discord";
 import { buildLeaderboard, buildResults } from "@/lib/tournaments";
 import PlayerSelect from "../../PlayerSelect";
 import { Segmented } from "../../posters/controls";
@@ -344,9 +344,11 @@ export default function TournamentDetailPage() {
             <div className="mb-3 flex items-center justify-between">
               <div className="eyebrow">Standings</div>
               <div className="flex gap-3">
-                <button type="button" onClick={postToDiscord} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
-                  Post to Discord
-                </button>
+                {DISCORD_ENABLED && (
+                  <button type="button" onClick={postToDiscord} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
+                    Post to Discord
+                  </button>
+                )}
                 <button type="button" onClick={copyResults} className="text-[10.5px] font-semibold uppercase tracking-wide text-text-dim hover:text-purple">
                   Copy
                 </button>
